@@ -13,6 +13,13 @@ pipewire-pulse
 wireplumber
 
 # --- рантайм графического стека (Wayland/wlroots) ---
+# Mesa обязательна: без DRI-драйверов wlroots не создаст GLES-рендерер
+# и упадёт в программный pixman (тормоза и артефакты, особенно в VM)
+libgl1-mesa-dri
+libegl-mesa0
+libegl1
+libgles2
+libgbm1
 libwlroots-0.18
 libwayland-server0
 libwayland-client0

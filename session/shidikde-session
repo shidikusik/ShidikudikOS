@@ -17,6 +17,12 @@ export GDK_BACKEND=wayland,x11
 export XKB_DEFAULT_LAYOUT="${XKB_DEFAULT_LAYOUT:-us,ru}"
 export XKB_DEFAULT_OPTIONS="${XKB_DEFAULT_OPTIONS:-grp:alt_shift_toggle}"
 
+# В виртуалках (QEMU/Boxes/VirtualBox) аппаратный курсор wlroots глючит:
+# призраки, мерцание, исчезновение. Программный курсор решает это.
+if systemd-detect-virt -q 2>/dev/null; then
+    export WLR_NO_HARDWARE_CURSORS=1
+fi
+
 # Пользовательская D-Bus-шина (нужна GTK, порталам, уведомлениям)
 if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
     exec dbus-run-session -- shidikwm -s shidikde-autostart

@@ -715,6 +715,11 @@ int main(int argc, char *argv[]) {
     server.scene_layout = wlr_scene_attach_output_layout(server.scene,
         server.output_layout);
 
+    /* Фон: тёмная заливка в тон логотипа (создаётся первым — лежит под
+     * всеми окнами). До полноценных обоев через layer-shell. */
+    wlr_scene_rect_create(&server.scene->tree, 8192, 8192,
+        (float[4]){0.102f, 0.106f, 0.149f, 1.0f});
+
     wl_list_init(&server.toplevels);
     server.xdg_shell = wlr_xdg_shell_create(server.wl_display, 3);
     server.new_xdg_toplevel.notify = server_new_xdg_toplevel;
