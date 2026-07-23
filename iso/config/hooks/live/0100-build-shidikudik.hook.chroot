@@ -17,7 +17,10 @@ done
 # нельзя — проверено на реальной сборке, что с нестандартным DM его
 # user-setup может не отработать (вход был бы невозможен).
 if ! id shidik >/dev/null 2>&1; then
-    useradd -m -s /bin/bash -G sudo,audio,video,netdev shidik
+    useradd -m -s /bin/bash -G sudo,audio,video shidik
+    # netdev есть в Debian, но не в Ubuntu — добавляем только если группа
+    # существует (несуществующая группа валит useradd целиком)
+    getent group netdev >/dev/null && usermod -aG netdev shidik
 fi
 echo 'shidik:live' | chpasswd
 
