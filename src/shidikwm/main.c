@@ -373,9 +373,10 @@ static void process_cursor_resize(struct swm_server *server) {
             new_right = new_left + 1;
     }
 
-    struct wlr_box *geo = &tl->xdg_toplevel->base->geometry;
+    struct wlr_box geo;
+    wlr_xdg_surface_get_geometry(tl->xdg_toplevel->base, &geo);
     wlr_scene_node_set_position(&tl->scene_tree->node,
-        new_left - geo->x, new_top - geo->y);
+        new_left - geo.x, new_top - geo.y);
     wlr_xdg_toplevel_set_size(tl->xdg_toplevel,
         new_right - new_left, new_bottom - new_top);
 }
@@ -580,14 +581,15 @@ static void begin_interactive(struct swm_toplevel *tl,
         server->grab_x = server->cursor->x - tl->scene_tree->node.x;
         server->grab_y = server->cursor->y - tl->scene_tree->node.y;
     } else {
-        struct wlr_box *geo = &tl->xdg_toplevel->base->geometry;
-        double border_x = (tl->scene_tree->node.x + geo->x) +
-            ((edges & WLR_EDGE_RIGHT) ? geo->width : 0);
-        double border_y = (tl->scene_tree->node.y + geo->y) +
-            ((edges & WLR_EDGE_BOTTOM) ? geo->height : 0);
+        struct wlr_box geo;
+        wlr_xdg_surface_get_geometry(tl->xdg_toplevel->base, &geo);
+        double border_x = (tl->scene_tree->node.x + geo.x) +
+            ((edges & WLR_EDGE_RIGHT) ? geo.width : 0);
+        double border_y = (tl->scene_tree->node.y + geo.y) +
+            ((edges & WLR_EDGE_BOTTOM) ? geo.height : 0);
         server->grab_x = server->cursor->x - border_x;
         server->grab_y = server->cursor->y - border_y;
-        server->grab_geobox = *geo;
+        server->grab_geobox = geo;
         server->grab_geobox.x += tl->scene_tree->node.x;
         server->grab_geobox.y += tl->scene_tree->node.y;
         server->resize_edges = edges;
