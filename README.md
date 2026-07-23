@@ -227,8 +227,24 @@ qemu-system-x86_64 -enable-kvm -m 4G -cdrom iso/live-image-amd64.hybrid.iso
 
 ---
 
-## 6. Дорожная карта
+## 6. Инсталлер
 
+`installer/shidik-install` — собственный консольный установщик в стиле
+ShidikDM (запускается из live-сессии: пункт «Установить ShidikudikOS» в
+меню приложений или `sudo shidik-install` в терминале):
+
+1. выбор целевого диска с явным подтверждением (диск стирается целиком);
+2. разметка GPT под UEFI (ESP + ext4) или BIOS (bios_grub + ext4) —
+   режим определяется автоматически;
+3. копирование работающей live-системы `rsync`'ом;
+4. **пользователь сам задаёт** имя компьютера, часовой пояс, логин и
+   пароль (root блокируется, работа через sudo);
+5. fstab по UUID, GRUB под нужный режим, свежий initramfs;
+6. удаление live-обвязки (live-boot/live-config) и live-пользователя.
+
+## 7. Дорожная карта
+
+- [x] инсталлер на диск (shidik-install)
 - [ ] layer-shell + foreign-toplevel в shidikwm → настоящий таскбар
 - [ ] графический greeter ShidikDM (SDL2/GTK4) поверх готового auth-слоя
 - [ ] воркспейсы и тайлинг-режим

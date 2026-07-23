@@ -1,0 +1,179 @@
+#!/bin/bash
+# shidik-install — установщик ShidikudikOS на диск.
+#
+# Запускается из live-сессии под root (sudo shidik-install).
+# Консольный, в одном стиле с ShidikDM: вопросы по одному, ничего лишнего.
+#
+# Что делает:
+#   1. выбор целевого диска (СТИРАЕТ ЕГО ЦЕЛИКОМ);
+#   2. разметка GPT: ESP (UEFI) или bios_grub (BIOS) + корень ext4;
+#   3. копирование работающей live-системы rsync'ом;
+#   4. hostname, часовой пояс, СВОЙ пользователь и СВОЙ пароль;
+#   5. fstab, GRUB (UEFI или BIOS), новый initramfs без live-boot;
+#   6. удаление live-обвязки и live-пользователя shidik.
+set -euo pipefail
+
+TARGET=/mnt/shidik-target
+
+C_ACCENT='\033[38;5;215m'
+C_RED='\033[31m'
+C_RESET='\033[0m'
+
+die() { echo -e "${C_RED}ошибка:${C_RESET} $*" >&2; exit 1; }
+
+cleanup() {
+    # снять всё, что успели примонтировать (в обратном порядке)
+    for m in "$TARGET/dev/pts" "$TARGET/dev" "$TARGET/proc" "$TARGET/sys" \
+             "$TARGET/boot/efi" "$TARGET"; do
+        mountpoint -q "$m" 2>/dev/null && umount -R "$m" 2>/dev/null || true
+    done
+}
+trap cleanup EXIT
+
+[ "$(id -u)" = 0 ] || die "нужен root: sudo shidik-install"
+[ -d /run/live ] || die "запускать нужно из live-сессии ShidikudikOS"
+
+clear
+echo -e "${C_ACCENT}"
+cat <<'BANNER'
+      \ /       \ /
+      (\)  ___  (/)
+       \\ /o o\ //
+        (   v   )        Установка ShidikudikOS
+         \ \_/ /         на жёсткий диск
+          '---'
+BANNER
+echo -e "${C_RESET}"
+
+# ---------- 1. выбор диска ----------
+echo "Доступные диски:"
+lsblk -dno NAME,SIZE,MODEL,TYPE | awk '$NF=="disk" {printf "  /dev/%-10s %8s  %s\n", $1, $2, substr($0, index($0,$3))}'
+echo
+echo "ВНИМАНИЕ: если ShidikudikOS запущена с флешки — не выбирайте её."
+read -rp "Целевой диск (например /dev/sda): " DISK
+[ -b "$DISK" ] || die "$DISK — не блочное устройство"
+
+echo
+echo -e "${C_RED}ВСЕ ДАННЫЕ НА $DISK БУДУТ УНИЧТОЖЕНЫ.${C_RESET}"
+read -rp "Введите YES заглавными, чтобы продолжить: " CONFIRM
+[ "$CONFIRM" = "YES" ] || die "установка отменена"
+
+# суффикс раздела: /dev/sda1, но /dev/nvme0n1p1
+PART=""
+case "$DISK" in *[0-9]) PART="p" ;; esac
+
+# ---------- 2. разметка и ФС ----------
+if [ -d /sys/firmware/efi ]; then
+    MODE=uefi
+    echo "== Режим UEFI: GPT, ESP 512 МиБ + корень ext4"
+    parted -s "$DISK" mklabel gpt \
+        mkpart ESP fat32 1MiB 513MiB set 1 esp on \
+        mkpart shidikroot ext4 513MiB 100%
+    ESP="${DISK}${PART}1"
+    ROOT="${DISK}${PART}2"
+    mkfs.vfat -F32 -n EFI "$ESP"
+else
+    MODE=bios
+    echo "== Режим BIOS: GPT, bios_grub + корень ext4"
+    parted -s "$DISK" mklabel gpt \
+        mkpart biosgrub 1MiB 2MiB set 1 bios_grub on \
+        mkpart shidikroot ext4 2MiB 100%
+    ROOT="${DISK}${PART}2"
+fi
+udevadm settle
+mkfs.ext4 -q -F -L shidikroot "$ROOT"
+
+mkdir -p "$TARGET"
+mount "$ROOT" "$TARGET"
+if [ "$MODE" = uefi ]; then
+    mkdir -p "$TARGET/boot/efi"
+    mount "$ESP" "$TARGET/boot/efi"
+fi
+
+# ---------- 3. копирование системы ----------
+echo "== Копирую систему (несколько минут)..."
+rsync -aHAX --info=progress2 \
+    --exclude=/dev/'*' --exclude=/proc/'*' --exclude=/sys/'*' \
+    --exclude=/tmp/'*' --exclude=/run/'*' --exclude=/mnt/'*' \
+    --exclude=/media/'*' --exclude=/lost+found --exclude=/boot/efi/'*' \
+    / "$TARGET/"
+mkdir -p "$TARGET"/{dev,proc,sys,tmp,run,mnt,media}
+chmod 1777 "$TARGET/tmp"
+
+# ---------- 4. вопросы пользователю ----------
+echo
+read -rp "Имя компьютера [shidikudik]: " NEWHOST
+NEWHOST=${NEWHOST:-shidikudik}
+echo "$NEWHOST" > "$TARGET/etc/hostname"
+cat > "$TARGET/etc/hosts" <<EOF
+127.0.0.1   localhost
+127.0.1.1   $NEWHOST
+::1         localhost ip6-localhost ip6-loopback
+EOF
+
+read -rp "Часовой пояс [Europe/Moscow]: " TZ
+TZ=${TZ:-Europe/Moscow}
+[ -f "$TARGET/usr/share/zoneinfo/$TZ" ] || die "нет такого пояса: $TZ"
+ln -sf "/usr/share/zoneinfo/$TZ" "$TARGET/etc/localtime"
+echo "$TZ" > "$TARGET/etc/timezone"
+
+while :; do
+    read -rp "Имя нового пользователя: " NEWUSER
+    [[ "$NEWUSER" =~ ^[a-z][a-z0-9_-]{0,31}$ ]] && break
+    echo "  латиница строчными, цифры, -, _; начинается с буквы"
+done
+
+# ---------- 5. настройка в chroot ----------
+mount --bind /dev  "$TARGET/dev"
+mount --bind /dev/pts "$TARGET/dev/pts"
+mount -t proc  proc "$TARGET/proc"
+mount --rbind /sys  "$TARGET/sys"   # rbind — чтобы UEFI видел efivars
+
+chroot "$TARGET" useradd -m -s /bin/bash -G sudo,audio,video "$NEWUSER" \
+    2>/dev/null || true
+chroot "$TARGET" usermod -aG sudo,audio,video "$NEWUSER"
+
+echo
+echo "== Пароль для $NEWUSER (вводится дважды, не отображается):"
+until chroot "$TARGET" passwd "$NEWUSER"; do
+    echo "  попробуйте ещё раз"
+done
+chroot "$TARGET" passwd -l root >/dev/null   # root заперт, работаем через sudo
+
+# live-пользователь больше не нужен
+if [ "$NEWUSER" != "shidik" ]; then
+    chroot "$TARGET" userdel -r shidik 2>/dev/null || true
+fi
+
+# fstab по UUID
+ROOT_UUID=$(blkid -s UUID -o value "$ROOT")
+{
+    echo "UUID=$ROOT_UUID / ext4 defaults 0 1"
+    if [ "$MODE" = uefi ]; then
+        echo "UUID=$(blkid -s UUID -o value "$ESP") /boot/efi vfat umask=0077 0 2"
+    fi
+} > "$TARGET/etc/fstab"
+
+# уникальный machine-id на первом старте
+truncate -s0 "$TARGET/etc/machine-id"
+rm -f "$TARGET/var/lib/dbus/machine-id"
+
+echo "== Убираю live-обвязку, ставлю GRUB..."
+chroot "$TARGET" env DEBIAN_FRONTEND=noninteractive \
+    apt-get purge -y -qq live-boot live-config live-boot-initramfs-tools \
+    live-config-systemd live-tools 2>/dev/null || true
+
+if [ "$MODE" = uefi ]; then
+    chroot "$TARGET" grub-install --target=x86_64-efi \
+        --efi-directory=/boot/efi --bootloader-id=ShidikudikOS --recheck
+else
+    chroot "$TARGET" grub-install --target=i386-pc --recheck "$DISK"
+fi
+chroot "$TARGET" update-initramfs -u
+chroot "$TARGET" update-grub
+
+echo
+echo -e "${C_ACCENT}Установка завершена.${C_RESET}"
+echo "Пользователь: $NEWUSER · компьютер: $NEWHOST · диск: $DISK ($MODE)"
+read -rp "Перезагрузиться сейчас? [y/N]: " R
+[ "${R,,}" = "y" ] && { cleanup; trap - EXIT; reboot; }

@@ -13,6 +13,12 @@ for component in shidikdm shidikwm shidikpanel shidiklaunch shidiksession; do
     make -C "$SRC/$component" clean all install
 done
 
+# Инсталлер: бинарь + пункт в меню приложений
+install -Dm755 /opt/shidikudik/installer/shidik-install \
+    /usr/local/bin/shidik-install
+install -Dm644 /opt/shidikudik/installer/shidikudik-installer.desktop \
+    /usr/share/applications/shidikudik-installer.desktop
+
 # Live-пользователь создаётся статически: полагаться на live-config
 # нельзя — проверено на реальной сборке, что с нестандартным DM его
 # user-setup может не отработать (вход был бы невозможен).

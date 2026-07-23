@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Установить ShidikudikOS
+Name[en]=Install ShidikudikOS
+Comment=Установка системы на жёсткий диск
+Comment[en]=Install the system to your hard drive
+Exec=foot -e sudo /usr/local/bin/shidik-install
+Type=Application
+Categories=System;

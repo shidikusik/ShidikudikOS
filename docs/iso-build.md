@@ -32,8 +32,8 @@ iso/
 ## Шаг 1. Конфигурация (chroot-окружение и базовые пакеты)
 
 `iso/auto/config` фиксирует параметры дистрибутива: Debian **trixie**,
-amd64, hybrid-ISO (BIOS+UEFI, без debian-installer — установка на диск
-в дорожной карте), секции
+amd64, hybrid-ISO (BIOS+UEFI; вместо debian-installer используется
+собственный `shidik-install`, см. `installer/`), секции
 `main contrib non-free-firmware` (прошивки Wi-Fi/GPU):
 
 ```sh

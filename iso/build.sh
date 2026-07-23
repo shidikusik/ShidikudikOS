@@ -21,6 +21,7 @@ cp -r "$REPO_ROOT/src"     config/includes.chroot/opt/shidikudik/src
 cp -r "$REPO_ROOT/session" config/includes.chroot/opt/shidikudik/session
 cp -r "$REPO_ROOT/systemd" config/includes.chroot/opt/shidikudik/systemd
 cp -r "$REPO_ROOT/assets"  config/includes.chroot/opt/shidikudik/assets
+cp -r "$REPO_ROOT/installer" config/includes.chroot/opt/shidikudik/installer
 
 # session-скрипты кладём и напрямую — Makefile shidiksession ссылается
 # на ../../session относительно src/, структура сохранена копированием.

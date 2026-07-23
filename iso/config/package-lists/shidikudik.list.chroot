@@ -35,6 +35,16 @@ foot
 firefox-esr
 nautilus
 
+# --- инсталлер shidik-install ---
+parted
+dosfstools
+rsync
+efibootmgr
+grub-common
+grub2-common
+grub-pc-bin
+grub-efi-amd64-bin
+
 # --- инструменты сборки: нужны chroot-хуку, который компилирует
 #     ShidikDM/ShidikDE из исходников; при желании можно удалить их
 #     обратным хуком после сборки ---
