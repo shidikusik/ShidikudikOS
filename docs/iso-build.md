@@ -127,8 +127,10 @@ qemu-system-x86_64 -enable-kvm -m 4G -cdrom live-image-amd64.hybrid.iso
 sudo dd if=live-image-amd64.hybrid.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
 
-Live-система логинится пользователем `shidik` (пароль live-config по
-умолчанию — `live`); пункт «Install» в меню загрузки ставит систему на диск.
+Live-система логинится пользователем `shidik` с паролем `live` (пользователь
+создаётся статически chroot-хуком — на live-config полагаться нельзя, с
+нестандартным DM его user-setup может не сработать); пункт «Install» в меню
+загрузки ставит систему на диск.
 
 Пересборка после правок кода:
 
