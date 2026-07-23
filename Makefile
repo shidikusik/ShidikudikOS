@@ -1,7 +1,7 @@
 # Корневой Makefile ShidikudikOS: собирает и ставит все компоненты.
 # Зависимости для сборки (Debian 13):
 #   apt install gcc make pkg-config libpam0g-dev libwlroots-0.18-dev \
-#       libwayland-dev libxkbcommon-dev libgtk-3-dev \
+#       libwayland-dev libxkbcommon-dev wayland-protocols libgtk-3-dev \
 #       libgtk-layer-shell-dev libsystemd-dev
 
 COMPONENTS = shidikdm shidikwm shidikpanel shidiklaunch shidiksession

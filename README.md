@@ -192,7 +192,7 @@ logind убивает все процессы сессии, композитор
 
 ```sh
 sudo apt install gcc make pkg-config libpam0g-dev libwlroots-0.18-dev \
-    libwayland-dev libxkbcommon-dev libgtk-3-dev \
+    libwayland-dev libxkbcommon-dev wayland-protocols libgtk-3-dev \
     libgtk-layer-shell-dev libsystemd-dev
 make            # собрать всё
 sudo make install
