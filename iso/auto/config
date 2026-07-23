@@ -1,0 +1,18 @@
+#!/bin/sh
+# live-build: параметры дистрибутива ShidikudikOS.
+# Вызывается автоматически командой `lb config` из каталога iso/.
+set -e
+
+lb config noauto \
+    --distribution trixie \
+    --architecture amd64 \
+    --archive-areas "main contrib non-free-firmware" \
+    --binary-images iso-hybrid \
+    --debian-installer live \
+    --linux-flavours amd64 \
+    --apt-recommends false \
+    --iso-application "ShidikudikOS" \
+    --iso-publisher "ShidikudikOS project" \
+    --iso-volume "ShidikudikOS" \
+    --bootappend-live "boot=live components quiet splash username=shidik hostname=shidikudik" \
+    "${@}"

@@ -1,0 +1,22 @@
+#!/bin/sh
+# Chroot-хук live-build: выполняется ВНУТРИ будущей системы на этапе
+# `lb build`. Компилирует ShidikDM и ShidikDE из исходников, которые
+# build.sh скопировал в /opt/shidikudik/src (через includes.chroot),
+# устанавливает их и включает автозапуск ShidikDM.
+set -e
+
+echo "== ShidikudikOS: сборка ShidikDM/ShidikDE =="
+SRC=/opt/shidikudik/src
+
+for component in shidikdm shidikwm shidikpanel shidiklaunch shidiksession; do
+    echo "-- сборка $component"
+    make -C "$SRC/$component" clean all install
+done
+
+# systemd: наш DM становится display-manager'ом системы
+install -Dm644 /opt/shidikudik/systemd/shidikdm.service \
+    /etc/systemd/system/shidikdm.service
+systemctl enable shidikdm.service
+systemctl set-default graphical.target
+
+echo "== ShidikudikOS: готово =="

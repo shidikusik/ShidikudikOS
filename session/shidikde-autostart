@@ -1,0 +1,11 @@
+#!/bin/sh
+# shidikde-autostart — запускается композитором shidikwm после старта
+# (флаг -s), когда WAYLAND_DISPLAY уже выставлен. Поднимает компоненты DE.
+
+shidikpanel &
+
+# Место для дальнейших компонентов:
+#   swaybg -i /usr/share/backgrounds/shidikudik.png &   # обои
+#   mako &                                              # уведомления
+
+wait

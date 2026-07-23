@@ -1,0 +1,15 @@
+# PAM-конфигурация ShidikDM (/etc/pam.d/shidikdm)
+# Debian-овские common-* подтягивают стандартный стек, включая pam_unix
+# (auth) и pam_systemd (session) — последний регистрирует сессию в logind
+# и создаёт /run/user/<uid> (XDG_RUNTIME_DIR).
+
+auth      requisite  pam_nologin.so
+@include  common-auth
+
+@include  common-account
+
+session   required   pam_loginuid.so
+session   optional   pam_keyinit.so force revoke
+@include  common-session
+
+@include  common-password

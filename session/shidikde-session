@@ -1,0 +1,25 @@
+#!/bin/sh
+# shidikde-session — точка входа в сессию ShidikDE.
+# Запускается ShidikDM'ом от имени пользователя (через login-shell).
+# Композитор стартует последним и блокирует скрипт до выхода из сессии;
+# всё остальное (панель и т.д.) поднимает shidikde-autostart, которому
+# композитор передаст правильный WAYLAND_DISPLAY.
+
+export XDG_CURRENT_DESKTOP=ShidikDE
+export XDG_SESSION_TYPE=wayland
+
+# Разумные дефолты для тулкитов на Wayland
+export MOZ_ENABLE_WAYLAND=1
+export QT_QPA_PLATFORM=wayland
+export GDK_BACKEND=wayland,x11
+
+# Раскладка клавиатуры для xkbcommon (композитор читает окружение)
+export XKB_DEFAULT_LAYOUT="${XKB_DEFAULT_LAYOUT:-us,ru}"
+export XKB_DEFAULT_OPTIONS="${XKB_DEFAULT_OPTIONS:-grp:alt_shift_toggle}"
+
+# Пользовательская D-Bus-шина (нужна GTK, порталам, уведомлениям)
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+    exec dbus-run-session -- shidikwm -s shidikde-autostart
+else
+    exec shidikwm -s shidikde-autostart
+fi

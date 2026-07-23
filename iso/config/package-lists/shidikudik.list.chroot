@@ -1,0 +1,51 @@
+# Пакеты, попадающие в chroot (то есть в саму ОС на ISO).
+
+# --- база ---
+live-boot
+live-config
+live-config-systemd
+systemd-sysv
+sudo
+locales
+console-setup
+network-manager
+pipewire
+pipewire-pulse
+wireplumber
+
+# --- рантайм графического стека (Wayland/wlroots) ---
+libwlroots-0.18
+libwayland-server0
+libwayland-client0
+libxkbcommon0
+libinput10
+seatd
+xwayland
+libgtk-3-0
+libgtk-layer-shell0
+libglib2.0-0
+libpam0g
+libsystemd0
+adwaita-icon-theme
+fonts-dejavu
+xdg-desktop-portal
+xdg-desktop-portal-wlr
+
+# --- пользовательские приложения ---
+foot
+firefox-esr
+nautilus
+
+# --- инструменты сборки: нужны chroot-хуку, который компилирует
+#     ShidikDM/ShidikDE из исходников; при желании можно удалить их
+#     обратным хуком после сборки ---
+gcc
+make
+pkg-config
+libpam0g-dev
+libwlroots-0.18-dev
+libwayland-dev
+libxkbcommon-dev
+libgtk-3-dev
+libgtk-layer-shell-dev
+libsystemd-dev

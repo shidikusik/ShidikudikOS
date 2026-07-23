@@ -1,0 +1,21 @@
+# артефакты сборки компонентов
+*.o
+src/shidikdm/shidikdm
+src/shidikwm/shidikwm
+src/shidikpanel/shidikpanel
+src/shidiklaunch/shidiklaunch
+src/shidiksession/shidik-session-ctl
+
+# рабочие каталоги live-build (создаются lb config / lb build)
+iso/.build/
+iso/cache/
+iso/chroot/
+iso/binary/
+iso/local/
+iso/config/includes.chroot/opt/shidikudik/
+iso/*.iso
+iso/*.log
+iso/*.files
+iso/*.packages
+iso/*.contents
+iso/*.zsync

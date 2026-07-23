@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=ShidikDE
+Comment=Лёгкое окружение рабочего стола ShidikudikOS
+Exec=/usr/local/bin/shidikde-session
+Type=Application
+DesktopNames=ShidikDE
