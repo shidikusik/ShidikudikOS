@@ -141,7 +141,7 @@ shidikde-session (shell)
            │           (WAYLAND_DISPLAY=wayland-0)
            └── shidikde-autostart
                 ├── shidikpanel   ← Wayland-клиент (layer-shell)
-                ├── shidiklaunch  ← по требованию (☰ или Alt+D)
+                ├── shidiklaunch  ← по требованию (☰ или Win+D)
                 └── shidik-session-ctl ← вызывается по кнопкам питания
                         └── D-Bus → systemd-logind (PowerOff/Reboot/...)
 ```
@@ -156,7 +156,7 @@ shidikde-session (shell)
   интерактивные перемещение и ресайз, попапы;
 - ввод: клавиатура через `xkbcommon` (раскладка из `XKB_DEFAULT_LAYOUT`),
   курсор через `wlr_cursor` + `xcursor`;
-- хоткеи: `Alt+Enter` — терминал (foot), `Alt+D` — лаунчер, `Alt+Tab` —
+- хоткеи: `Alt+Enter` — терминал (foot), `Win+D` — лаунчер, `Alt+Tab` —
   переключение окон, `Alt+Q` — закрыть окно, `Alt+Esc` — выход из сессии;
 - `-s <cmd>` — автостарт-скрипт получает готовый `WAYLAND_DISPLAY`.
 
