@@ -6,7 +6,7 @@
  * Что уже умеет:
  *   - вывод на все мониторы (wlr_output_layout + wlr_scene);
  *   - окна xdg-shell: отображение, фокус, перемещение (Super+ЛКМ),
- *     изменение размера (Super+ПКМ), Alt+Tab, закрытие;
+ *     изменение размера (Super+ПКМ), Win+Tab, закрытие;
  *   - клавиатура/мышь через libinput, раскладка через xkbcommon;
  *   - запуск автостарт-скрипта (панель, обои) через параметр -s.
  *
@@ -158,28 +158,17 @@ static void keyboard_handle_modifiers(struct wl_listener *listener, void *data) 
         &kb->wlr_keyboard->modifiers);
 }
 
-/* Хоткеи композитора. Возвращает true, если клавиша обработана и не
- * должна уйти клиенту. Win(Super)+D — меню приложений, остальное на Alt. */
+/* Хоткеи композитора (модификатор — Win/Super, как в Windows и GNOME).
+ * Возвращает true, если клавиша обработана и не должна уйти клиенту. */
 static bool handle_keybinding(struct swm_server *server, uint32_t mods,
         xkb_keysym_t sym) {
-    if (mods & WLR_MODIFIER_LOGO) {
-        if (sym == XKB_KEY_d || sym == XKB_KEY_D) { /* Win+D — лаунчер */
-            if (fork() == 0) {
-                execl("/bin/sh", "/bin/sh", "-c", "shidiklaunch",
-                    (char *)NULL);
-                _exit(1);
-            }
-            return true;
-        }
-        return false;
-    }
-    if (!(mods & WLR_MODIFIER_ALT))
+    if (!(mods & WLR_MODIFIER_LOGO))
         return false;
     switch (sym) {
-    case XKB_KEY_Escape: /* Alt+Esc — выйти из сессии */
+    case XKB_KEY_Escape: /* Win+Esc — выйти из сессии */
         wl_display_terminate(server->wl_display);
         break;
-    case XKB_KEY_Tab: {  /* Alt+Tab — следующее окно */
+    case XKB_KEY_Tab: {  /* Win+Tab — следующее окно */
         if (wl_list_length(&server->toplevels) < 2)
             break;
         struct swm_toplevel *next =
@@ -187,13 +176,14 @@ static bool handle_keybinding(struct swm_server *server, uint32_t mods,
         focus_toplevel(next);
         break;
     }
-    case XKB_KEY_Return: /* Alt+Enter — терминал */
+    case XKB_KEY_Return: /* Win+Enter — терминал */
         if (fork() == 0) {
             execl("/bin/sh", "/bin/sh", "-c", "foot", (char *)NULL);
             _exit(1);
         }
         break;
-    case XKB_KEY_q: {    /* Alt+Q — закрыть активное окно */
+    case XKB_KEY_q:      /* Win+Q — закрыть активное окно */
+    case XKB_KEY_Q: {
         if (wl_list_empty(&server->toplevels))
             break;
         struct swm_toplevel *tl =
@@ -201,6 +191,13 @@ static bool handle_keybinding(struct swm_server *server, uint32_t mods,
         wlr_xdg_toplevel_send_close(tl->xdg_toplevel);
         break;
     }
+    case XKB_KEY_d:      /* Win+D — меню приложений */
+    case XKB_KEY_D:
+        if (fork() == 0) {
+            execl("/bin/sh", "/bin/sh", "-c", "shidiklaunch", (char *)NULL);
+            _exit(1);
+        }
+        break;
     default:
         return false;
     }
@@ -220,7 +217,7 @@ static void keyboard_handle_key(struct wl_listener *listener, void *data) {
 
     bool handled = false;
     uint32_t mods = wlr_keyboard_get_modifiers(kb->wlr_keyboard);
-    if ((mods & (WLR_MODIFIER_ALT | WLR_MODIFIER_LOGO)) &&
+    if ((mods & WLR_MODIFIER_LOGO) &&
             event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         for (int i = 0; i < nsyms; i++)
             handled = handle_keybinding(server, mods, syms[i]) || handled;
