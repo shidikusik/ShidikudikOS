@@ -1,0 +1,55 @@
+# Сборка ISO ShidikudikOS и публикация в GitHub Releases.
+# Запуск: push тега v* (например v0.1.0) или вручную (workflow_dispatch —
+# тогда создаётся pre-release dev-r<номер запуска>).
+name: Release ISO
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ISO in Debian trixie container
+        run: |
+          sudo docker run --privileged --rm \
+            -v "$PWD":/work -w /work/iso debian:trixie \
+            bash -c "apt-get update -qq && apt-get install -y -qq live-build && ./build.sh"
+
+      - name: Prepare release metadata
+        id: meta
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=dev-r${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Rename artifact
+        run: |
+          sudo mv iso/live-image-amd64.hybrid.iso \
+            "shidikudikos-${{ steps.meta.outputs.tag }}-amd64.iso"
+          sha256sum "shidikudikos-${{ steps.meta.outputs.tag }}-amd64.iso" \
+            > "shidikudikos-${{ steps.meta.outputs.tag }}-amd64.iso.sha256"
+
+      - name: Create release and upload ISO
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.meta.outputs.tag }}" \
+            "shidikudikos-${{ steps.meta.outputs.tag }}-amd64.iso" \
+            "shidikudikos-${{ steps.meta.outputs.tag }}-amd64.iso.sha256" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "ShidikudikOS ${{ steps.meta.outputs.tag }}" \
+            --prerelease=${{ steps.meta.outputs.prerelease }} \
+            --generate-notes

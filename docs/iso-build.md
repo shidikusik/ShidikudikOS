@@ -32,7 +32,8 @@ iso/
 ## Шаг 1. Конфигурация (chroot-окружение и базовые пакеты)
 
 `iso/auto/config` фиксирует параметры дистрибутива: Debian **trixie**,
-amd64, hybrid-ISO (BIOS+UEFI), live-инсталлятор, секции
+amd64, hybrid-ISO (BIOS+UEFI, без debian-installer — установка на диск
+в дорожной карте), секции
 `main contrib non-free-firmware` (прошивки Wi-Fi/GPU):
 
 ```sh
@@ -129,8 +130,12 @@ sudo dd if=live-image-amd64.hybrid.iso of=/dev/sdX bs=4M status=progress oflag=s
 
 Live-система логинится пользователем `shidik` с паролем `live` (пользователь
 создаётся статически chroot-хуком — на live-config полагаться нельзя, с
-нестандартным DM его user-setup может не сработать); пункт «Install» в меню
-загрузки ставит систему на диск.
+нестандартным DM его user-setup может не сработать).
+
+Готовые ISO публикуются в GitHub Releases автоматически: workflow
+`.github/workflows/release-iso.yml` собирает образ в контейнере
+`debian:trixie` при пуше тега `v*` (или вручную через workflow_dispatch)
+и прикладывает его к релизу вместе с sha256-суммой.
 
 Пересборка после правок кода:
 

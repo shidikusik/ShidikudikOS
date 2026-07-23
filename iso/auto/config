@@ -8,7 +8,7 @@ lb config noauto \
     --architecture amd64 \
     --archive-areas "main contrib non-free-firmware" \
     --binary-images iso-hybrid \
-    --debian-installer live \
+    --debian-installer none \
     --linux-flavours amd64 \
     --apt-recommends false \
     --iso-application "ShidikudikOS" \
