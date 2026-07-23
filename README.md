@@ -1,10 +1,15 @@
 # ShidikudikOS
 
+**Русский** · [English](README.en.md)
+
 <img src="assets/logo.svg" width="160" align="right" alt="логотип ShidikudikOS — дик-дик"/>
 
 **ShidikudikOS** — учебно-практический Debian-based дистрибутив Linux с
 собственными, написанными с нуля Display Manager (**ShidikDM**) и Desktop
 Environment (**ShidikDE**).
+
+📀 **[Скачать готовый ISO →](https://github.com/shidikusik/ShidikudikOS/releases)**
+(логин live-сессии: `shidik` / `live`)
 
 Талисман — **дик-дик**: миниатюрная антилопа. Маленькая, быстрая,
 незаметная и выносливая — как и сам дистрибутив. Логотип: `assets/logo.svg`.
@@ -20,11 +25,23 @@ Environment (**ShidikDE**).
 
 ---
 
+## Скриншоты
+
+Сняты в QEMU при первой успешной сборке — система от экрана входа до
+меню приложений:
+
+| Экран входа (ShidikDM) | Рабочий стол (ShidikDE) | Меню приложений |
+|---|---|---|
+| ![Экран входа ShidikDM](assets/screenshots/shidikdm-login.png) | ![Рабочий стол ShidikDE с панелью](assets/screenshots/shidikde-desktop.png) | ![Меню приложений shidiklaunch](assets/screenshots/shidiklaunch-menu.png) |
+| ASCII-дик-дик и консольный greeter на tty1 | панель: меню, часы, load average, кнопка питания | Win+D: поиск по .desktop-файлам |
+
+---
+
 ## 1. Общие характеристики
 
 | Параметр            | Значение                                             |
 |---------------------|------------------------------------------------------|
-| База                | Debian 13 "trixie" (stable)                          |
+| База                | Debian 13 "trixie" (stable), ядро Linux 6.12 LTS     |
 | Пакетный менеджер   | `apt` / `dpkg`                                       |
 | Инициализация       | `systemd` (+ `systemd-logind` для сессий и питания)  |
 | Графический стек    | **Wayland** через **wlroots 0.18**                   |
@@ -57,11 +74,9 @@ X11 для нового DE в 2026 году — тупиковая ветка: �
 
 ```
 ShidikudikOS/
-├── README.md                  ← этот файл
+├── README.md / README.en.md   ← этот файл (RU/EN)
 ├── Makefile                   ← сборка/установка всех компонентов
-├── assets/
-│   ├── logo.svg               ← логотип (дик-дик)
-│   └── logo-ascii.txt         ← ASCII-версия для консоли
+├── assets/                    ← логотип, скриншоты
 ├── src/
 │   ├── shidikdm/              ← Display Manager (C + PAM)
 │   │   ├── main.c             ← greeter: баннер, логин/пароль, главный цикл
@@ -72,18 +87,15 @@ ShidikudikOS/
 │   ├── shidikpanel/           ← панель (C + GTK3 + gtk-layer-shell)
 │   ├── shidiklaunch/          ← меню приложений (.desktop, C + GTK3)
 │   └── shidiksession/         ← shidik-session-ctl (C + sd-bus/logind)
+├── installer/                 ← shidik-install: установка на диск
 ├── session/
 │   ├── shidikde-session       ← точка входа в сессию (env + dbus + wm)
 │   ├── shidikde-autostart     ← поднимает панель и пр. внутри Wayland
 │   └── shidikde.desktop       ← регистрация сессии (wayland-sessions)
 ├── systemd/
 │   └── shidikdm.service       ← автозапуск DM на tty1
-├── iso/                       ← конфигурация live-build
-│   ├── build.sh               ← «одна кнопка» сборки ISO
-│   ├── auto/config            ← параметры lb config
-│   └── config/
-│       ├── package-lists/     ← пакеты образа
-│       └── hooks/live/        ← chroot-хук: компиляция DM/DE, enable юнита
+├── iso/                       ← конфигурация live-build + build.sh
+├── .github/workflows/         ← CI: сборка ISO и публикация в Releases
 └── docs/
     └── iso-build.md           ← пошаговая инструкция сборки ISO
 ```
