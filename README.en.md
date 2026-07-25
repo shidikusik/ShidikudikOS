@@ -263,8 +263,13 @@ app menu, or `sudo shidik-install` in a terminal):
 ## 7. Roadmap
 
 - [x] disk installer (shidik-install)
+- [x] graphical ShidikDM greeter (shidikgreet: glassmorphism, dedicated
+      compositor via seatd-launch, root-side auth over a socket)
+- [x] our own terminal Shidik-Term (GTK3 + VTE, branded palette)
+- [x] Shidik-Control settings center (theme, network, displays, user)
+- [x] dark theme by default, wallpapers, branding in /usr/share/shidikudik
+- [ ] Shidik-Files: file manager (pcmanfm/nautilus for now)
 - [ ] layer-shell + foreign-toplevel in shidikwm → a real taskbar
-- [ ] graphical ShidikDM greeter (SDL2/GTK4) on top of the existing auth layer
 - [ ] workspaces and a tiling mode
 - [ ] packaging the components as .deb (debhelper) instead of the build hook
 - [ ] our own apt repository (reprepro/aptly)

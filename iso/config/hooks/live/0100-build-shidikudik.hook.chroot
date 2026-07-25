@@ -8,10 +8,19 @@ set -e
 echo "== ShidikudikOS: сборка ShidikDM/ShidikDE =="
 SRC=/opt/shidikudik/src
 
-for component in shidikdm shidikwm shidikpanel shidiklaunch shidiksession; do
+for component in shidikdm shidikwm shidikpanel shidiklaunch shidiksession \
+                 shidikgreet shidikterm shidikcontrol; do
     echo "-- сборка $component"
     make -C "$SRC/$component" clean all install
 done
+
+# Брендинг: логотип и обои (нужны greeter'у и Shidik-Control)
+install -Dm644 /opt/shidikudik/assets/logo.svg \
+    /usr/share/shidikudik/logo.svg
+install -Dm644 /opt/shidikudik/assets/wallpaper.png \
+    /usr/share/shidikudik/wallpaper.png
+install -Dm644 /opt/shidikudik/assets/wallpaper-blur.png \
+    /usr/share/shidikudik/wallpaper-blur.png
 
 # Инсталлер: бинарь + пункт в меню приложений
 install -Dm755 /opt/shidikudik/installer/shidik-install \

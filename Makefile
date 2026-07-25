@@ -4,7 +4,8 @@
 #       libwayland-dev libxkbcommon-dev wayland-protocols libgtk-3-dev \
 #       libgtk-layer-shell-dev libsystemd-dev
 
-COMPONENTS = shidikdm shidikwm shidikpanel shidiklaunch shidiksession
+COMPONENTS = shidikdm shidikwm shidikpanel shidiklaunch shidiksession \
+             shidikgreet shidikterm shidikcontrol
 
 all:
 	for c in $(COMPONENTS); do $(MAKE) -C src/$$c all || exit 1; done

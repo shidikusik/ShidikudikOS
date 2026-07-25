@@ -107,6 +107,7 @@ struct swm_toplevel {
     struct wl_listener request_move;
     struct wl_listener request_resize;
     struct wl_listener request_maximize;
+    struct wl_listener request_fullscreen;
 };
 
 struct swm_keyboard {
@@ -178,7 +179,8 @@ static bool handle_keybinding(struct swm_server *server, uint32_t mods,
     }
     case XKB_KEY_Return: /* Win+Enter — терминал */
         if (fork() == 0) {
-            execl("/bin/sh", "/bin/sh", "-c", "foot", (char *)NULL);
+            execl("/bin/sh", "/bin/sh", "-c",
+                "shidik-term || foot", (char *)NULL);
             _exit(1);
         }
         break;
@@ -571,6 +573,7 @@ static void xdg_toplevel_destroy(struct wl_listener *listener, void *data) {
     wl_list_remove(&tl->request_move.link);
     wl_list_remove(&tl->request_resize.link);
     wl_list_remove(&tl->request_maximize.link);
+    wl_list_remove(&tl->request_fullscreen.link);
     free(tl);
 }
 
@@ -626,6 +629,24 @@ static void xdg_toplevel_request_maximize(struct wl_listener *listener,
         wlr_xdg_surface_schedule_configure(tl->xdg_toplevel->base);
 }
 
+static void xdg_toplevel_request_fullscreen(struct wl_listener *listener,
+        void *data) {
+    (void)data;
+    /* Растягиваем окно на первый вывод (нужно greeter'у и видео). */
+    struct swm_toplevel *tl =
+        wl_container_of(listener, tl, request_fullscreen);
+    if (!tl->xdg_toplevel->base->initialized)
+        return;
+    bool want = tl->xdg_toplevel->requested.fullscreen;
+    if (want) {
+        struct wlr_box box;
+        wlr_output_layout_get_box(tl->server->output_layout, NULL, &box);
+        wlr_scene_node_set_position(&tl->scene_tree->node, box.x, box.y);
+        wlr_xdg_toplevel_set_size(tl->xdg_toplevel, box.width, box.height);
+    }
+    wlr_xdg_toplevel_set_fullscreen(tl->xdg_toplevel, want);
+}
+
 static void server_new_xdg_toplevel(struct wl_listener *listener,
         void *data) {
     struct swm_server *server =
@@ -655,6 +676,9 @@ static void server_new_xdg_toplevel(struct wl_listener *listener,
     tl->request_maximize.notify = xdg_toplevel_request_maximize;
     wl_signal_add(&xdg_toplevel->events.request_maximize,
         &tl->request_maximize);
+    tl->request_fullscreen.notify = xdg_toplevel_request_fullscreen;
+    wl_signal_add(&xdg_toplevel->events.request_fullscreen,
+        &tl->request_fullscreen);
 }
 
 static void server_new_xdg_popup(struct wl_listener *listener, void *data) {

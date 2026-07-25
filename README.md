@@ -86,7 +86,10 @@ ShidikudikOS/
 │   ├── shidikwm/              ← Wayland-композитор (C + wlroots 0.18)
 │   ├── shidikpanel/           ← панель (C + GTK3 + gtk-layer-shell)
 │   ├── shidiklaunch/          ← меню приложений (.desktop, C + GTK3)
-│   └── shidiksession/         ← shidik-session-ctl (C + sd-bus/logind)
+│   ├── shidiksession/         ← shidik-session-ctl (C + sd-bus/logind)
+│   ├── shidikgreet/           ← графический greeter DM (glassmorphism)
+│   ├── shidikterm/            ← Shidik-Term: терминал (GTK3 + VTE)
+│   └── shidikcontrol/         ← Shidik-Control: центр настроек
 ├── installer/                 ← shidik-install: установка на диск
 ├── session/
 │   ├── shidikde-session       ← точка входа в сессию (env + dbus + wm)
@@ -258,8 +261,13 @@ ShidikDM (запускается из live-сессии: пункт «Устан
 ## 7. Дорожная карта
 
 - [x] инсталлер на диск (shidik-install)
+- [x] графический greeter ShidikDM (shidikgreet: glassmorphism, свой
+      композитор через seatd-launch, авторизация у root по сокету)
+- [x] собственный терминал Shidik-Term (GTK3 + VTE, фирменная палитра)
+- [x] центр настроек Shidik-Control (тема, сеть, экраны, пользователь)
+- [x] тёмная тема по умолчанию, обои, брендинг в /usr/share/shidikudik
+- [ ] Shidik-Files: файловый менеджер (пока pcmanfm/nautilus)
 - [ ] layer-shell + foreign-toplevel в shidikwm → настоящий таскбар
-- [ ] графический greeter ShidikDM (SDL2/GTK4) поверх готового auth-слоя
 - [ ] воркспейсы и тайлинг-режим
 - [ ] упаковка компонентов в .deb (debhelper) вместо сборки хуком
 - [ ] собственный репозиторий apt (reprepro/aptly)

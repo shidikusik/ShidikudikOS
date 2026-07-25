@@ -1,20 +1,30 @@
 /* ShidikDM — Display Manager дистрибутива ShidikudikOS.
  *
- * Минималистичный консольный greeter в духе greetd/ly:
- *   1. рисует баннер на выделенном VT (tty1, выдаётся systemd-юнитом);
- *   2. спрашивает логин/пароль;
- *   3. авторизует через PAM (auth.c);
- *   4. открывает logind-сессию и запускает shidikde-session (session.c);
- *   5. после завершения сессии возвращается к шагу 1.
+ * Два режима greeter'а:
  *
- * Работает под root (запускается systemd), привилегии сбрасываются
- * только в форкнутом процессе сессии.
+ *   ГРАФИЧЕСКИЙ (по умолчанию, если установлен shidikgreet):
+ *     shidikdm поднимает выделенный композитор с экраном входа
+ *     (seatd-launch shidikwm -s shidikgreet) и слушает unix-сокет.
+ *     Greeter присылает "<user>\0<pass>\0", shidikdm проверяет пару через
+ *     PAM (auth.c) и отвечает 'O'/'F'. После успеха greeter-композитор
+ *     гасится, и на освободившемся seat запускается сессия пользователя.
+ *     Схема как у greetd/SDDM: UI без привилегий, авторизация — у root.
+ *
+ *   КОНСОЛЬНЫЙ (fallback): классический текстовый вход на tty. Включается
+ *     переменной SHIDIKDM_CONSOLE=1, отсутствием shidikgreet или если
+ *     графический greeter упал — чтобы никогда не запереть машину.
+ *
+ * Работает под root (systemd, tty1); привилегии сбрасываются только в
+ * форкнутом процессе сессии (session.c).
  */
 #define _GNU_SOURCE
+#include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -22,10 +32,11 @@
 #include "session.h"
 
 #define DEFAULT_SESSION "/usr/local/bin/shidikde-session"
+#define GREETER_BIN "/usr/local/bin/shidikgreet"
 #define MAX_ATTEMPTS 3
 
 static const char *BANNER =
-    "\033[2J\033[H"           /* очистить экран, курсор в начало */
+    "\033[2J\033[H"
     "\033[38;5;215m"
     "      \\ /       \\ /\n"
     "      (\\)  ___  (/)\n"
@@ -35,7 +46,8 @@ static const char *BANNER =
     "          '---'\n"
     "\033[0m\n";
 
-/* Читает строку без эха (для пароля). */
+/* ---------- консольный greeter ---------- */
+
 static int read_password(char *buf, size_t len) {
     struct termios old, new;
     if (tcgetattr(STDIN_FILENO, &old) != 0)
@@ -43,9 +55,7 @@ static int read_password(char *buf, size_t len) {
     new = old;
     new.c_lflag &= ~(tcflag_t)ECHO;
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &new);
-
     char *r = fgets(buf, len, stdin);
-
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &old);
     printf("\n");
     if (!r)
@@ -63,45 +73,143 @@ static int read_line(const char *prompt, char *buf, size_t len) {
     return 0;
 }
 
+/* Консольный вход. 0 — auth заполнен, -1 — не удалось. */
+static int console_greeter(struct sdm_auth *auth, const char *tty) {
+    printf("%s", BANNER);
+    char user[128] = {0}, pass[256] = {0};
+    int attempts = 0;
+
+    while (attempts < MAX_ATTEMPTS) {
+        if (read_line("  логин: ", user, sizeof(user)) != 0 ||
+            user[0] == '\0')
+            continue;
+        printf("  пароль: ");
+        fflush(stdout);
+        if (read_password(pass, sizeof(pass)) != 0)
+            continue;
+
+        int ok = (sdm_authenticate(auth, user, pass, tty) == 0);
+        explicit_bzero(pass, sizeof(pass));
+        if (ok)
+            return 0;
+        attempts++;
+        printf("\n  \033[31mневерный логин или пароль\033[0m\n\n");
+        sleep(1);
+    }
+    return -1;
+}
+
+/* ---------- графический greeter ---------- */
+
+/* Читает из fd C-строку (до NUL). 0 — успех, -1 — EOF/ошибка. */
+static int read_cstring(int fd, char *buf, size_t len) {
+    size_t i = 0;
+    while (i < len - 1) {
+        char c;
+        ssize_t n = read(fd, &c, 1);
+        if (n <= 0)
+            return -1;
+        buf[i++] = c;
+        if (c == '\0')
+            return 0;
+    }
+    buf[len - 1] = '\0';
+    return 0;
+}
+
+static pid_t spawn_greeter(int *fd_out) {
+    int sv[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0)
+        return -1;
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(sv[0]);
+        close(sv[1]);
+        return -1;
+    }
+    if (pid == 0) {
+        /* конец сокета greeter'а закрепляем за fd 3 — shidikwm и /bin/sh
+         * наследуют его до самого shidikgreet */
+        if (dup2(sv[1], 3) < 0)
+            _exit(127);
+        close(sv[0]);
+        if (sv[1] != 3)
+            close(sv[1]);
+        setenv("SHIDIKDM_FD", "3", 1);
+        execl("/bin/sh", "/bin/sh", "-c",
+            "exec seatd-launch shidikwm -s shidikgreet", (char *)NULL);
+        _exit(127);
+    }
+    close(sv[1]);
+    *fd_out = sv[0];
+    return pid;
+}
+
+/* Графический вход. 0 — auth заполнен; -1 — greeter недоступен/упал
+ * (вызывающий откатывается на консоль). */
+static int graphical_greeter(struct sdm_auth *auth, const char *tty) {
+    int fd = -1;
+    pid_t pid = spawn_greeter(&fd);
+    if (pid < 0)
+        return -1;
+
+    int result = -1;
+    char user[128], pass[256];
+
+    for (;;) {
+        if (read_cstring(fd, user, sizeof(user)) != 0 ||
+            read_cstring(fd, pass, sizeof(pass)) != 0)
+            break; /* greeter умер или закрыл сокет */
+
+        char resp = (sdm_authenticate(auth, user, pass, tty) == 0)
+            ? 'O' : 'F';
+        explicit_bzero(pass, sizeof(pass));
+
+        if (write(fd, &resp, 1) < 0)
+            break;
+        if (resp == 'O') {
+            result = 0;
+            break;
+        }
+    }
+
+    close(fd);
+    /* гасим greeter-композитор, чтобы он освободил DRM/VT для сессии */
+    kill(pid, SIGTERM);
+    for (int i = 0; i < 50; i++) { /* до 5 секунд на корректный выход */
+        if (waitpid(pid, NULL, WNOHANG) == pid)
+            break;
+        usleep(100000);
+    }
+    kill(pid, SIGKILL);
+    waitpid(pid, NULL, WNOHANG);
+    return result;
+}
+
+/* ---------- main ---------- */
+
 int main(int argc, char *argv[]) {
-    const char *session_cmd =
-        (argc > 1) ? argv[1] : DEFAULT_SESSION;
+    const char *session_cmd = (argc > 1) ? argv[1] : DEFAULT_SESSION;
     const char *tty = ttyname(STDIN_FILENO);
     if (!tty)
         tty = "/dev/tty1";
 
-    /* Сессия умирает — DM должен жить. */
     signal(SIGPIPE, SIG_IGN);
 
+    int use_graphical = !getenv("SHIDIKDM_CONSOLE") &&
+        access(GREETER_BIN, X_OK) == 0;
+
     for (;;) {
-        printf("%s", BANNER);
-
-        char user[128] = {0}, pass[256] = {0};
-        int attempts = 0;
         struct sdm_auth auth;
-        int authed = 0;
+        int authed = -1;
 
-        while (attempts < MAX_ATTEMPTS && !authed) {
-            if (read_line("  логин: ", user, sizeof(user)) != 0 ||
-                user[0] == '\0')
-                continue;
-            printf("  пароль: ");
-            fflush(stdout);
-            if (read_password(pass, sizeof(pass)) != 0)
-                continue;
-
-            if (sdm_authenticate(&auth, user, pass, tty) == 0) {
-                authed = 1;
-            } else {
-                attempts++;
-                printf("\n  \033[31mневерный логин или пароль\033[0m\n\n");
-                sleep(1); /* лёгкая защита от перебора */
-            }
-            explicit_bzero(pass, sizeof(pass));
-        }
-
-        if (!authed)
-            continue; /* перерисовать баннер и начать заново */
+        if (use_graphical)
+            authed = graphical_greeter(&auth, tty);
+        if (authed != 0)
+            authed = console_greeter(&auth, tty);
+        if (authed != 0)
+            continue; /* исчерпаны попытки — начать заново */
 
         if (sdm_open_session(&auth) != 0) {
             fprintf(stderr, "shidikdm: не удалось открыть сессию\n");
@@ -110,9 +218,7 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        printf("\n  запускаю ShidikDE...\n");
         sdm_run_session(&auth, session_cmd);
-
-        sdm_end(&auth); /* закрыть logind-сессию */
+        sdm_end(&auth);
     }
 }

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Настройки
+Name[en]=Settings
+Comment=Центр настроек ShidikudikOS (Shidik-Control)
+Comment[en]=ShidikudikOS control center
+Exec=shidik-control
+Type=Application
+Categories=System;Settings;
