@@ -373,6 +373,83 @@ static void on_nmtui(GtkButton *b, gpointer data) {
     spawn_in_terminal("nmtui");
 }
 
+/* ---------- мобильный интернет (USB-модем) ---------- */
+
+static GtkWidget *modem_label;
+
+static void refresh_modems(GtkButton *b, gpointer data) {
+    (void)b; (void)data;
+    if (!g_find_program_in_path("mmcli")) {
+        gtk_label_set_text(GTK_LABEL(modem_label),
+            "ModemManager не установлен");
+        return;
+    }
+    gchar *out = run_capture("mmcli -L");
+    if (!out || !*out || strstr(out, "No modems")) {
+        gtk_label_set_text(GTK_LABEL(modem_label),
+            "Модемы не найдены.\n"
+            "Телефон в режиме USB-модема и свистки HiLink подключаются "
+            "сами — смотрите раздел «Устройства» выше.");
+    } else {
+        gtk_label_set_text(GTK_LABEL(modem_label), out);
+    }
+    g_free(out);
+}
+
+/* Создание GSM-подключения: спрашиваем APN и, если нужно, логин/пароль. */
+static void on_modem_connect(GtkButton *b, gpointer data) {
+    (void)b; (void)data;
+
+    GtkWidget *dlg = gtk_dialog_new_with_buttons("Мобильный интернет",
+        GTK_WINDOW(window), GTK_DIALOG_MODAL,
+        "Отмена", GTK_RESPONSE_CANCEL, "Подключить", GTK_RESPONSE_OK, NULL);
+    GtkWidget *area = gtk_dialog_get_content_area(GTK_DIALOG(dlg));
+    gtk_container_set_border_width(GTK_CONTAINER(area), 12);
+    gtk_box_set_spacing(GTK_BOX(area), 6);
+
+    GtkWidget *hint = gtk_label_new(
+        "APN оператора (примеры):\n"
+        "  МТС — internet.mts.ru, логин/пароль mts/mts\n"
+        "  Билайн — internet.beeline.ru, beeline/beeline\n"
+        "  МегаФон — internet, gdata/gdata\n"
+        "  Tele2 — internet.tele2.ru, без логина");
+    gtk_widget_set_halign(hint, GTK_ALIGN_START);
+    gtk_box_pack_start(GTK_BOX(area), hint, FALSE, FALSE, 0);
+
+    GtkWidget *apn = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(apn), "APN, например internet");
+    gtk_box_pack_start(GTK_BOX(area), apn, FALSE, FALSE, 0);
+    GtkWidget *user = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(user), "логин (если нужен)");
+    gtk_box_pack_start(GTK_BOX(area), user, FALSE, FALSE, 0);
+    GtkWidget *pass = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(pass), "пароль (если нужен)");
+    gtk_box_pack_start(GTK_BOX(area), pass, FALSE, FALSE, 0);
+    gtk_widget_show_all(dlg);
+
+    if (gtk_dialog_run(GTK_DIALOG(dlg)) == GTK_RESPONSE_OK) {
+        const gchar *a = gtk_entry_get_text(GTK_ENTRY(apn));
+        const gchar *u = gtk_entry_get_text(GTK_ENTRY(user));
+        const gchar *p = gtk_entry_get_text(GTK_ENTRY(pass));
+        if (a && *a) {
+            GString *cmd = g_string_new(
+                "nmcli connection add type gsm ifname '*' "
+                "con-name shidik-mobile");
+            g_string_append_printf(cmd, " apn '%s'", a);
+            if (u && *u)
+                g_string_append_printf(cmd, " gsm.username '%s'", u);
+            if (p && *p)
+                g_string_append_printf(cmd, " gsm.password '%s'", p);
+            run_async(cmd->str);
+            g_string_free(cmd, TRUE);
+            /* поднимаем соединение чуть позже — nmcli добавляет не мгновенно */
+            run_async("sh -c 'sleep 2; nmcli connection up shidik-mobile'");
+            gtk_label_set_text(GTK_LABEL(modem_label), "Подключаюсь…");
+        }
+    }
+    gtk_widget_destroy(dlg);
+}
+
 static void on_open_shade(GtkButton *b, gpointer data) {
     (void)b; (void)data;
     run_async("shidikshade --toggle");
@@ -409,7 +486,25 @@ static GtkWidget *build_network_page(void) {
     gtk_box_pack_start(GTK_BOX(row), conf, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(box), row, FALSE, FALSE, 0);
 
+    gtk_box_pack_start(GTK_BOX(box), section("Мобильный интернет (USB-модем)"),
+        FALSE, FALSE, 0);
+    modem_label = gtk_label_new("");
+    gtk_widget_set_halign(modem_label, GTK_ALIGN_START);
+    gtk_label_set_line_wrap(GTK_LABEL(modem_label), TRUE);
+    gtk_label_set_selectable(GTK_LABEL(modem_label), TRUE);
+    gtk_box_pack_start(GTK_BOX(box), modem_label, FALSE, FALSE, 0);
+
+    GtkWidget *mrow = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    GtkWidget *mrefresh = gtk_button_new_with_label("Найти модемы");
+    g_signal_connect(mrefresh, "clicked", G_CALLBACK(refresh_modems), NULL);
+    GtkWidget *mconnect = gtk_button_new_with_label("Подключить…");
+    g_signal_connect(mconnect, "clicked", G_CALLBACK(on_modem_connect), NULL);
+    gtk_box_pack_start(GTK_BOX(mrow), mrefresh, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(mrow), mconnect, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), mrow, FALSE, FALSE, 0);
+
     refresh_network(NULL, NULL);
+    refresh_modems(NULL, NULL);
     return scrolled_page(box);
 }
 

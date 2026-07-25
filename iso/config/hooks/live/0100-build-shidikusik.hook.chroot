@@ -30,6 +30,8 @@ install -Dm644 /opt/shidikusik/docs/hardware.md \
 
 # Сервисы, которые должны работать на постоянной основе
 systemctl enable bluetooth 2>/dev/null || true
+systemctl enable ModemManager 2>/dev/null || true
+systemctl enable usbmuxd 2>/dev/null || true
 systemctl enable cups 2>/dev/null || true
 systemctl enable avahi-daemon 2>/dev/null || true
 systemctl enable systemd-timesyncd 2>/dev/null || true

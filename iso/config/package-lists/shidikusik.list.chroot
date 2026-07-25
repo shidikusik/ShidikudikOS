@@ -12,6 +12,16 @@ console-setup
 keyboard-configuration
 network-manager
 wpasupplicant
+# Мобильный интернет: ModemManager нужен LTE-свисткам в режиме модема,
+# usb-modeswitch выводит их из режима «виртуального CD», usbmuxd —
+# для iPhone в режиме USB-модема. Android-телефоны и свистки HiLink
+# работают и без этого (RNDIS/CDC-драйверы уже в ядре).
+modemmanager
+usb-modeswitch
+usbmuxd
+libimobiledevice-utils
+libmbim-utils
+libqmi-utils
 # polkit: pkexec нужен установщику и магазину, lxpolkit — агент, который
 # рисует запрос пароля внутри сессии (в trixie polkit разбит на пакеты)
 polkitd

@@ -371,6 +371,8 @@ qemu-system-x86_64 -enable-kvm -m 4G -cdrom iso/live-image-amd64.hybrid.iso
 - [x] шторка уведомлений и быстрых настроек (Wi-Fi, Bluetooth, звук)
 - [x] экран блокировки через PAM
 - [x] прошивки, Bluetooth, печать, кодеки — готовность к ежедневной работе
+- [x] мобильный интернет: USB-модемы, телефон как модем (ModemManager,
+      usb-modeswitch, usbmuxd) + подключение по APN из настроек
 - [x] layer-shell в shidikwm — панель как полоса у края экрана
 - [x] автовход в live-режиме без пароля
 - [x] графический установщик (мастер на GtkAssistant)
