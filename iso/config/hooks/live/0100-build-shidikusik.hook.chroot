@@ -5,28 +5,22 @@
 # устанавливает их и включает автозапуск ShidikDM.
 set -e
 
-echo "== ShidikusikOS: сборка ShidikDM/ShidikDE =="
-SRC=/opt/shidikusik/src
+echo "== ShidikusikOS: сборка и установка рабочего окружения =="
 
-for component in shidikdm shidikwm shidikpanel shidiklaunch shidiksession \
-                 shidikgreet shidikterm shidikcontrol shidikfiles \
-                 shidikstore shidikshade shidiklock; do
-    echo "-- сборка $component"
-    make -C "$SRC/$component" clean all install
-done
+# Окружение ставится ПАКЕТОМ, а не россыпью файлов. Это принципиально:
+# только так apt знает о нём и может обновлять систему без переустановки
+# (`sudo shidik-update` или «Настройки → Обновления»).
+cd /opt/shidikusik
+./packaging/build-deb.sh "1.0.$(date -u +%Y%m%d%H%M)" /tmp
+dpkg -i /tmp/shidikusik-desktop_*.deb
+rm -f /tmp/shidikusik-desktop_*.deb
 
-echo "-- сборка графического установщика"
-make -C /opt/shidikusik/installer/gui clean all install
-
-# Брендинг: логотип и обои (нужны greeter'у и Shidik-Control)
-install -Dm644 /opt/shidikusik/assets/logo.svg \
-    /usr/share/shidikusik/logo.svg
-install -Dm644 /opt/shidikusik/assets/wallpaper.png \
-    /usr/share/shidikusik/wallpaper.png
-install -Dm644 /opt/shidikusik/assets/wallpaper-blur.png \
-    /usr/share/shidikusik/wallpaper-blur.png
-install -Dm644 /opt/shidikusik/docs/hardware.md \
-    /usr/share/doc/shidikusik/hardware.md 2>/dev/null || true
+# Репозиторий обновлений: ветка apt-repo нашего проекта на GitHub.
+# [trusted=yes] — репозиторий не подписан ключом; для личного
+# дистрибутива это осознанный компромисс (см. docs/updates.md).
+install -d /etc/apt/sources.list.d
+echo 'deb [trusted=yes] https://raw.githubusercontent.com/shidikusik/ShidikudikOS/apt-repo ./' \
+    > /etc/apt/sources.list.d/shidikusik.list
 
 # Сервисы, которые должны работать на постоянной основе
 systemctl enable bluetooth 2>/dev/null || true

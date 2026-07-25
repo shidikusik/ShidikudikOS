@@ -1,0 +1,77 @@
+#!/bin/sh
+# shidik-update — обновление ShidikusikOS без переустановки.
+#
+#   shidik-update            обновить систему и рабочее окружение
+#   shidik-update --check    только посмотреть, что доступно
+#   shidik-update --from-git собрать окружение из исходников (запасной
+#                            путь, если репозиторий недоступен)
+#
+# Обычный путь: рабочее окружение — это пакет shidikusik-desktop из
+# нашего apt-репозитория, поэтому обновляется как всё остальное.
+set -e
+
+REPO_URL="https://raw.githubusercontent.com/shidikusik/ShidikudikOS/apt-repo"
+GIT_URL="https://github.com/shidikusik/ShidikudikOS.git"
+BRANCH="claude/shidikudikos-distro-design-0sf83u"
+
+need_root() {
+    [ "$(id -u)" = 0 ] || { echo "нужны права root: sudo shidik-update $*"; exit 1; }
+}
+
+case "${1:-}" in
+--check)
+    apt-get update -qq
+    echo "== доступные обновления =="
+    apt list --upgradable 2>/dev/null | grep -v '^Listing' || echo "нет"
+    exit 0
+    ;;
+--from-git)
+    need_root "$@"
+    echo "== сборка окружения из исходников =="
+    apt-get update -qq
+    apt-get install -y -qq git build-essential pkg-config \
+        libpam0g-dev libwlroots-0.18-dev libwayland-dev libxkbcommon-dev \
+        wayland-protocols libgtk-3-dev libgtk-layer-shell-dev \
+        libsystemd-dev libvte-2.91-dev
+    TMP=$(mktemp -d)
+    git clone --depth 1 -b "$BRANCH" "$GIT_URL" "$TMP/src"
+    make -C "$TMP/src" all
+    make -C "$TMP/src" install
+    rm -rf "$TMP"
+    echo "== готово. Выйдите из сессии, чтобы изменения применились."
+    exit 0
+    ;;
+"")
+    ;;
+*)
+    echo "использование: shidik-update [--check|--from-git]"
+    exit 2
+    ;;
+esac
+
+need_root
+# Репозиторий ShidikusikOS мог не попасть в систему (образы до dev-r11)
+if [ ! -f /etc/apt/sources.list.d/shidikusik.list ]; then
+    echo "== подключаю репозиторий ShidikusikOS"
+    echo "deb [trusted=yes] $REPO_URL ./" \
+        > /etc/apt/sources.list.d/shidikusik.list
+fi
+
+echo "== обновляю списки пакетов"
+apt-get update -qq
+
+echo "== обновляю систему и рабочее окружение"
+DEBIAN_FRONTEND=noninteractive apt-get -y upgrade
+
+# Если окружение стоит «россыпью» (собрано хуком ISO, а не пакетом) —
+# ставим пакет поверх: дальше обновления пойдут штатно через apt.
+if ! dpkg -s shidikusik-desktop >/dev/null 2>&1; then
+    echo "== перевожу рабочее окружение под управление apt"
+    DEBIAN_FRONTEND=noninteractive \
+        apt-get -y install shidikusik-desktop || \
+        echo "  пакет пока недоступен — попробуйте shidik-update --from-git"
+fi
+
+echo
+echo "== готово. Перезагрузитесь или выйдите из сессии (Win+Esc),"
+echo "   чтобы обновлённое окружение запустилось."

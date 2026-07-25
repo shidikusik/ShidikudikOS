@@ -26,6 +26,10 @@ cp -r "$REPO_ROOT/installer" config/includes.chroot/opt/shidikusik/installer
 # пакетами, заголовок генерируется из него wayland-scanner'ом
 cp -r "$REPO_ROOT/protocols" config/includes.chroot/opt/shidikusik/protocols
 cp -r "$REPO_ROOT/docs"      config/includes.chroot/opt/shidikusik/docs
+# packaging/ — хук собирает из него .deb и ставит окружение пакетом,
+# чтобы система обновлялась через apt, а не переустановкой
+cp -r "$REPO_ROOT/packaging" config/includes.chroot/opt/shidikusik/packaging
+cp "$REPO_ROOT/Makefile"     config/includes.chroot/opt/shidikusik/Makefile
 
 # session-скрипты кладём и напрямую — Makefile shidiksession ссылается
 # на ../../session относительно src/, структура сохранена копированием.

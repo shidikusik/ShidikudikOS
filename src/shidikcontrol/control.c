@@ -795,9 +795,82 @@ static void on_do_upgrade(GtkButton *b, gpointer data) {
     run_apt("-y upgrade");
 }
 
+/* Обновление самого рабочего окружения. Оно поставлено пакетом
+ * shidikusik-desktop из нашего репозитория, поэтому обновляется так же,
+ * как всё остальное — переустанавливать систему не нужно. */
+static void on_update_desktop(GtkButton *b, gpointer data) {
+    (void)b; (void)data;
+    log_line("Обновляю ShidikusikOS (система + рабочее окружение)…\n");
+
+    gchar **argv = NULL;
+    g_shell_parse_argv("pkexec shidik-update", NULL, &argv, NULL);
+    gint out_fd;
+    GPid pid;
+    if (!g_spawn_async_with_pipes(NULL, argv, NULL,
+            G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD |
+            G_SPAWN_STDERR_TO_DEV_NULL,
+            NULL, NULL, &pid, NULL, &out_fd, NULL, NULL)) {
+        log_line("Не удалось запустить shidik-update.\n"
+                 "В терминале: sudo shidik-update\n");
+        g_strfreev(argv);
+        return;
+    }
+    g_strfreev(argv);
+
+    GIOChannel *ch = g_io_channel_unix_new(out_fd);
+    g_io_channel_set_encoding(ch, NULL, NULL);
+    gchar *line = NULL;
+    gsize len;
+    while (g_io_channel_read_line(ch, &line, &len, NULL, NULL) ==
+            G_IO_STATUS_NORMAL && line) {
+        log_line(line);
+        g_free(line);
+        line = NULL;
+        while (gtk_events_pending())
+            gtk_main_iteration();
+    }
+    g_io_channel_shutdown(ch, FALSE, NULL);
+    g_io_channel_unref(ch);
+    g_spawn_close_pid(pid);
+    log_line("\n— готово. Выйдите из сессии (Win+Esc), чтобы обновлённое "
+             "окружение запустилось —\n\n");
+}
+
+static gchar *desktop_version(void) {
+    gchar *v = run_capture(
+        "dpkg-query -W -f=${Version} shidikusik-desktop");
+    if (v && *v)
+        return v;
+    g_free(v);
+    return NULL;
+}
+
 static GtkWidget *build_updates_page(void) {
     GtkWidget *box = page_box();
-    gtk_box_pack_start(GTK_BOX(box), section("Обновление системы"),
+    gtk_box_pack_start(GTK_BOX(box), section("ShidikusikOS"),
+        FALSE, FALSE, 0);
+
+    gchar *ver = desktop_version();
+    gtk_box_pack_start(GTK_BOX(box),
+        info_row("Версия окружения", ver ? ver : "не пакетом (старый образ)"),
+        FALSE, FALSE, 0);
+    g_free(ver);
+
+    GtkWidget *big = gtk_button_new_with_label(
+        "Обновить ShidikusikOS");
+    gtk_widget_set_halign(big, GTK_ALIGN_START);
+    g_signal_connect(big, "clicked", G_CALLBACK(on_update_desktop), NULL);
+    gtk_box_pack_start(GTK_BOX(box), big, FALSE, FALSE, 0);
+
+    GtkWidget *note = gtk_label_new(
+        "Обновляет и систему, и рабочее окружение. Переустанавливать "
+        "ОС не нужно.\nТо же самое в терминале: sudo shidik-update");
+    gtk_widget_set_halign(note, GTK_ALIGN_START);
+    gtk_style_context_add_class(gtk_widget_get_style_context(note),
+        "dim-label");
+    gtk_box_pack_start(GTK_BOX(box), note, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(box), section("Пакеты Debian"),
         FALSE, FALSE, 0);
 
     GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);

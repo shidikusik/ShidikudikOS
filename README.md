@@ -128,9 +128,12 @@ ShidikusikOS/
 ├── systemd/
 │   └── shidikdm.service       ← автозапуск DM на tty1
 ├── iso/                       ← конфигурация live-build + build.sh
-├── .github/workflows/         ← CI: сборка ISO и публикация в Releases
+├── packaging/                 ← сборка .deb и shidik-update
+├── .github/workflows/         ← CI: .deb → apt-репозиторий → ISO
 └── docs/
-    └── iso-build.md           ← пошаговая инструкция сборки ISO
+    ├── iso-build.md           ← пошаговая инструкция сборки ISO
+    ├── updates.md             ← обновление без переустановки
+    └── hardware.md            ← железо: что работает, MT7902, модемы
 ```
 
 ---
@@ -338,6 +341,20 @@ echo 'мой-пароль' | sudo shidik-install --unattended \
     --password-stdin
 ```
 
+### Обновление без переустановки
+
+Рабочее окружение — обычный пакет `shidikusik-desktop` из собственного
+apt-репозитория (ветка `apt-repo` этого проекта), поэтому обновляется
+как всё остальное:
+
+```sh
+sudo shidik-update      # система + окружение одной командой
+```
+
+или «Настройки → Обновления → Обновить ShidikusikOS». Переустанавливать
+систему не нужно. Подробности, откат версий и запасная сборка из
+исходников — в [`docs/updates.md`](docs/updates.md).
+
 ---
 
 ## 6. Сборка ISO
@@ -373,6 +390,9 @@ qemu-system-x86_64 -enable-kvm -m 4G -cdrom iso/live-image-amd64.hybrid.iso
 - [x] прошивки, Bluetooth, печать, кодеки — готовность к ежедневной работе
 - [x] мобильный интернет: USB-модемы, телефон как модем (ModemManager,
       usb-modeswitch, usbmuxd) + подключение по APN из настроек
+- [x] обновление без переустановки: окружение — пакет
+      `shidikusik-desktop`, свой apt-репозиторий, `shidik-update`
+- [ ] подпись репозитория GPG-ключом
 - [x] layer-shell в shidikwm — панель как полоса у края экрана
 - [x] автовход в live-режиме без пароля
 - [x] графический установщик (мастер на GtkAssistant)
