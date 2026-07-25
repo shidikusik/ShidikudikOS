@@ -40,8 +40,11 @@ xdg-desktop-portal-wlr
 # --- пользовательские приложения ---
 foot
 firefox-esr
-nautilus
 libvte-2.91-0
+# gvfs — корзина и монтирование для Shidik-Files;
+# shared-mime-info — типы файлов (иконки, «открыть с помощью»)
+gvfs
+shared-mime-info
 
 # --- инсталлер shidik-install ---
 parted

@@ -5,7 +5,7 @@
 #       libgtk-layer-shell-dev libsystemd-dev
 
 COMPONENTS = shidikdm shidikwm shidikpanel shidiklaunch shidiksession \
-             shidikgreet shidikterm shidikcontrol
+             shidikgreet shidikterm shidikcontrol shidikfiles
 
 all:
 	for c in $(COMPONENTS); do $(MAKE) -C src/$$c all || exit 1; done

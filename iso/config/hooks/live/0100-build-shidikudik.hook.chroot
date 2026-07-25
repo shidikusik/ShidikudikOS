@@ -9,7 +9,7 @@ echo "== ShidikudikOS: сборка ShidikDM/ShidikDE =="
 SRC=/opt/shidikudik/src
 
 for component in shidikdm shidikwm shidikpanel shidiklaunch shidiksession \
-                 shidikgreet shidikterm shidikcontrol; do
+                 shidikgreet shidikterm shidikcontrol shidikfiles; do
     echo "-- сборка $component"
     make -C "$SRC/$component" clean all install
 done

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Файлы
+Name[en]=Files
+Comment=Файловый менеджер ShidikudikOS (Shidik-Files)
+Comment[en]=ShidikudikOS file manager
+Exec=shidik-files
+Type=Application
+Categories=System;FileManager;

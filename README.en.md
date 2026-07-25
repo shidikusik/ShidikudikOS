@@ -268,7 +268,8 @@ app menu, or `sudo shidik-install` in a terminal):
 - [x] our own terminal Shidik-Term (GTK3 + VTE, branded palette)
 - [x] Shidik-Control settings center (theme, network, displays, user)
 - [x] dark theme by default, wallpapers, branding in /usr/share/shidikudik
-- [ ] Shidik-Files: file manager (pcmanfm/nautilus for now)
+- [x] Shidik-Files: file manager (GTK3 + GIO: navigation, places, trash,
+      rename, open-with-default)
 - [ ] layer-shell + foreign-toplevel in shidikwm → a real taskbar
 - [ ] workspaces and a tiling mode
 - [ ] packaging the components as .deb (debhelper) instead of the build hook
