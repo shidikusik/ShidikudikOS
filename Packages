@@ -1,0 +1,24 @@
+Package: shidikusik-desktop
+Version: 1.0.202607251247
+Architecture: amd64
+Maintainer: ShidikusikOS <noreply@shidikusik.local>
+Installed-Size: 1340
+Depends: libc6, libwlroots-0.18, libwayland-server0, libxkbcommon0,
+ libgtk-3-0 | libgtk-3-0t64, libgtk-layer-shell0, libvte-2.91-0,
+ libpam0g, libsystemd0, libglib2.0-0 | libglib2.0-0t64,
+ adwaita-icon-theme, librsvg2-common, seatd
+Recommends: network-manager, bluez, pipewire, wireplumber, brightnessctl,
+ lxpolkit, pkexec, foot, swaybg, modemmanager
+Filename: ./shidikusik-desktop_1.0.202607251247_amd64.deb
+Size: 834776
+MD5sum: 1725d20e5c15c00678c1d3ba3f1e7530
+SHA1: 3c9a162e148508c442615a02984839baeb4f7874
+SHA256: 53bb58d1662bff2616f6fe29ce2f5417a9742974f6057e1388e7852de3b95553
+Section: x11
+Priority: optional
+Description: Рабочее окружение ShidikusikOS (ShidikDM + ShidikDE)
+ Собственные display manager и окружение рабочего стола, написанные с
+ нуля: Wayland-композитор на wlroots, панель, меню приложений, шторка
+ уведомлений и быстрых настроек, экран блокировки, терминал, файловый
+ менеджер, магазин приложений, центр настроек и установщик на диск.
+
