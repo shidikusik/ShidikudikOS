@@ -1,4 +1,4 @@
-/* ShidikDM — Display Manager дистрибутива ShidikudikOS.
+/* ShidikDM — Display Manager дистрибутива ShidikusikOS.
  *
  * Два режима greeter'а:
  *
@@ -33,18 +33,18 @@
 
 #define DEFAULT_SESSION "/usr/local/bin/shidikde-session"
 #define GREETER_BIN "/usr/local/bin/shidikgreet"
-#define AUTOLOGIN_CONF "/etc/shidikudik/autologin"
+#define AUTOLOGIN_CONF "/etc/shidikusik/autologin"
 #define MAX_ATTEMPTS 3
 
 static const char *BANNER =
     "\033[2J\033[H"
     "\033[38;5;215m"
-    "      \\ /       \\ /\n"
-    "      (\\)  ___  (/)\n"
-    "       \\\\ /o o\\ //\n"
-    "        (   v   )        \033[1mShidikudikOS\033[0m\033[38;5;215m\n"
-    "         \\ \\_/ /         маленький · быстрый · свой\n"
-    "          '---'\n"
+    "   ██████╗\n"
+    "   ██╔═══╝\n"
+    "   ╚█████╗     \033[1mShidikusikOS\033[0m\033[38;5;215m\n"
+    "    ╚═══██╗    маленький · быстрый · свой\n"
+    "   ██████╔╝\n"
+    "   ╚═════╝\n"
     "\033[0m\n";
 
 /* ---------- консольный greeter ---------- */
@@ -190,7 +190,7 @@ static int graphical_greeter(struct sdm_auth *auth, const char *tty) {
 
 /* ---------- автовход ---------- */
 
-/* Читает имя пользователя из /etc/shidikudik/autologin (одна строка).
+/* Читает имя пользователя из /etc/shidikusik/autologin (одна строка).
  * Возвращает malloc'нутую строку или NULL, если автовход не настроен. */
 static char *autologin_user(void) {
     FILE *f = fopen(AUTOLOGIN_CONF, "r");

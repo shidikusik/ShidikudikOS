@@ -19,7 +19,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define WALLPAPER "/usr/share/shidikudik/wallpaper-blur.png"
+#define WALLPAPER "/usr/share/shidikusik/wallpaper-blur.png"
 
 static int dm_fd = -1;
 static GtkWidget *user_entry, *pass_entry, *error_label, *login_button,
@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
         "clock");
     gtk_box_pack_start(GTK_BOX(card), clock_label, FALSE, FALSE, 0);
 
-    GtkWidget *title = gtk_label_new("ShidikudikOS");
+    GtkWidget *title = gtk_label_new("ShidikusikOS");
     gtk_style_context_add_class(gtk_widget_get_style_context(title), "title");
     gtk_box_pack_start(GTK_BOX(card), title, FALSE, FALSE, 0);
 

@@ -15,8 +15,8 @@ install: shidik-install-gui
 	install -Dm755 shidik-install-gui \
 		$(DESTDIR)$(PREFIX)/bin/shidik-install-gui
 	install -Dm755 ../shidik-install $(DESTDIR)$(PREFIX)/bin/shidik-install
-	install -Dm644 ../shidikudik-installer.desktop \
-		$(DESTDIR)/usr/share/applications/shidikudik-installer.desktop
+	install -Dm644 ../shidikusik-installer.desktop \
+		$(DESTDIR)/usr/share/applications/shidikusik-installer.desktop
 
 clean:
 	rm -f shidik-install-gui

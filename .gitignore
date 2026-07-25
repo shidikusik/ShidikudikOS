@@ -18,10 +18,12 @@ iso/cache/
 iso/chroot/
 iso/binary/
 iso/local/
-iso/config/includes.chroot/opt/shidikudik/
+iso/config/includes.chroot/opt/shidikusik/
 iso/*.iso
 iso/*.log
 iso/*.files
 iso/*.packages
 iso/*.contents
 iso/*.zsync
+src/shidikshade/shidikshade
+src/shidiklock/shidiklock

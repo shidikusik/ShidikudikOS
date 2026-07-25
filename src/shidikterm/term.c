@@ -9,7 +9,7 @@
 #include <gtk/gtk.h>
 #include <vte/vte.h>
 
-/* Палитра в тон ShidikudikOS (tokyonight-подобная) */
+/* Палитра в тон ShidikusikOS (tokyonight-подобная) */
 static const char *PALETTE_HEX[16] = {
     "#15161e", "#f7768e", "#9ece6a", "#e0af68",
     "#7aa2f7", "#bb9af7", "#7dcfff", "#a9b1d6",

@@ -1,4 +1,4 @@
-/* shidikwm — Wayland-композитор ShidikDE (дистрибутив ShidikudikOS).
+/* shidikwm — Wayland-композитор ShidikDE (дистрибутив ShidikusikOS).
  *
  * Каркас основан на tinywl из проекта wlroots (лицензия CC0) и рассчитан
  * на wlroots 0.18 (пакет libwlroots-0.18-dev в Debian 13 "trixie").
@@ -97,6 +97,12 @@ struct swm_server {
     struct wlr_output_layout *output_layout;
     struct wl_list outputs;
     struct wl_listener new_output;
+
+    /* Тайлинг: окна раскладываются мастер/стек без наложения.
+     * Переключается Win+T, доля мастера — Win+[ и Win+]. */
+    bool tiling;
+    double master_ratio;
+    int usable_top;   /* сколько занимает панель сверху (exclusive zone) */
 };
 
 struct swm_output {
@@ -127,6 +133,7 @@ struct swm_layer_surface {
     struct swm_server *server;
     struct wlr_layer_surface_v1 *layer_surface;
     struct wlr_scene_layer_surface_v1 *scene;
+    struct wl_listener map;
     struct wl_listener commit;
     struct wl_listener destroy;
 };
@@ -139,6 +146,8 @@ struct swm_keyboard {
     struct wl_listener key;
     struct wl_listener destroy;
 };
+
+void arrange_tiling(struct swm_server *server);
 
 /* ---------- фокус ---------- */
 
@@ -162,11 +171,70 @@ static void focus_toplevel(struct swm_toplevel *toplevel) {
     wl_list_remove(&toplevel->link);
     wl_list_insert(&server->toplevels, &toplevel->link);
     wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
+    arrange_tiling(server); /* окно с фокусом становится мастером */
 
     struct wlr_keyboard *kb = wlr_seat_get_keyboard(seat);
     if (kb != NULL) {
         wlr_seat_keyboard_notify_enter(seat, surface, kb->keycodes,
             kb->num_keycodes, &kb->modifiers);
+    }
+}
+
+/* ---------- тайлинг ---------- */
+
+/* Раскладка «мастер/стек»: первое окно занимает левую часть экрана,
+ * остальные делят правую по вертикали. Классика dwm/sway, но без
+ * настроек — одна предсказуемая схема. */
+void arrange_tiling(struct swm_server *server) {
+    if (!server->tiling)
+        return;
+
+    int count = wl_list_length(&server->toplevels);
+    if (count == 0)
+        return;
+
+    struct wlr_box screen;
+    wlr_output_layout_get_box(server->output_layout, NULL, &screen);
+    if (screen.width <= 0 || screen.height <= 0)
+        return;
+
+    /* не залезаем под панель */
+    int top = screen.y + server->usable_top;
+    int height = screen.height - server->usable_top;
+    const int gap = 8;
+
+    int master_w = (count == 1)
+        ? screen.width - 2 * gap
+        : (int)((screen.width - 3 * gap) * server->master_ratio);
+
+    int i = 0;
+    struct swm_toplevel *tl;
+    /* toplevels: голова списка — окно с фокусом, оно и есть мастер */
+    wl_list_for_each(tl, &server->toplevels, link) {
+        struct wlr_box geo;
+        wlr_xdg_surface_get_geometry(tl->xdg_toplevel->base, &geo);
+        int x, y, w, h;
+
+        if (i == 0) {
+            x = screen.x + gap;
+            y = top + gap;
+            w = master_w;
+            h = height - 2 * gap;
+        } else {
+            int stack_count = count - 1;
+            int stack_h = (height - gap * (stack_count + 1)) / stack_count;
+            x = screen.x + master_w + 2 * gap;
+            y = top + gap + (i - 1) * (stack_h + gap);
+            w = screen.width - master_w - 3 * gap;
+            h = stack_h;
+        }
+        if (w < 100) w = 100;
+        if (h < 80) h = 80;
+
+        wlr_scene_node_set_position(&tl->scene_tree->node,
+            x - geo.x, y - geo.y);
+        wlr_xdg_toplevel_set_size(tl->xdg_toplevel, w, h);
+        i++;
     }
 }
 
@@ -219,6 +287,38 @@ static bool handle_keybinding(struct swm_server *server, uint32_t mods,
         if (fork() == 0) {
             execl("/bin/sh", "/bin/sh", "-c", "shidiklaunch", (char *)NULL);
             _exit(1);
+        }
+        break;
+    case XKB_KEY_n:      /* Win+N — шторка уведомлений и настроек */
+    case XKB_KEY_N:
+        if (fork() == 0) {
+            execl("/bin/sh", "/bin/sh", "-c", "shidikshade --toggle",
+                (char *)NULL);
+            _exit(1);
+        }
+        break;
+    case XKB_KEY_l:      /* Win+L — заблокировать экран */
+    case XKB_KEY_L:
+        if (fork() == 0) {
+            execl("/bin/sh", "/bin/sh", "-c", "shidiklock", (char *)NULL);
+            _exit(1);
+        }
+        break;
+    case XKB_KEY_t:      /* Win+T — тайлинг вкл/выкл */
+    case XKB_KEY_T:
+        server->tiling = !server->tiling;
+        arrange_tiling(server);
+        break;
+    case XKB_KEY_bracketleft:  /* Win+[ — мастер уже */
+        if (server->master_ratio > 0.25) {
+            server->master_ratio -= 0.05;
+            arrange_tiling(server);
+        }
+        break;
+    case XKB_KEY_bracketright: /* Win+] — мастер шире */
+        if (server->master_ratio < 0.85) {
+            server->master_ratio += 0.05;
+            arrange_tiling(server);
         }
         break;
     default:
@@ -565,6 +665,13 @@ static void xdg_toplevel_map(struct wl_listener *listener, void *data) {
     struct swm_toplevel *tl = wl_container_of(listener, tl, map);
     wl_list_insert(&tl->server->toplevels, &tl->link);
 
+    if (tl->server->tiling) {
+        /* в тайлинге позицию и размер задаёт раскладка */
+        arrange_tiling(tl->server);
+        focus_toplevel(tl);
+        return;
+    }
+
     /* Новое окно — по центру экрана. Без этого все окна открываются в
      * левом верхнем углу друг на друге. Каждое следующее чуть смещаем,
      * чтобы одинаковые окна не сливались в одно. */
@@ -601,6 +708,7 @@ static void xdg_toplevel_unmap(struct wl_listener *listener, void *data) {
     if (tl == tl->server->grabbed_toplevel)
         reset_cursor_mode(tl->server);
     wl_list_remove(&tl->link);
+    arrange_tiling(tl->server); /* оставшиеся окна перезаполняют экран */
 }
 
 static void xdg_toplevel_commit(struct wl_listener *listener, void *data) {
@@ -746,14 +854,54 @@ static void layer_surface_commit(struct wl_listener *listener, void *data) {
         surface->output, &full);
     struct wlr_box usable = full; /* exclusive zone вычитается helper'ом */
     wlr_scene_layer_surface_v1_configure(ls->scene, &full, &usable);
+
+    /* Запоминаем, сколько «съела» панель сверху — тайлинг не должен
+     * раскладывать окна под ней. */
+    int top = usable.y - full.y;
+    if (top != ls->server->usable_top) {
+        ls->server->usable_top = top;
+        arrange_tiling(ls->server);
+    }
+}
+
+/* Поверхность просит клавиатуру (экран блокировки, меню) — отдаём фокус.
+ * Без этого в shidiklock нельзя было бы ввести пароль. */
+static void layer_surface_map(struct wl_listener *listener, void *data) {
+    (void)data;
+    struct swm_layer_surface *ls = wl_container_of(listener, ls, map);
+    struct wlr_layer_surface_v1 *surface = ls->layer_surface;
+    if (surface->current.keyboard_interactive ==
+            ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE)
+        return;
+
+    struct wlr_keyboard *kb = wlr_seat_get_keyboard(ls->server->seat);
+    if (kb != NULL) {
+        wlr_seat_keyboard_notify_enter(ls->server->seat, surface->surface,
+            kb->keycodes, kb->num_keycodes, &kb->modifiers);
+    }
 }
 
 static void layer_surface_destroy(struct wl_listener *listener, void *data) {
     (void)data;
     struct swm_layer_surface *ls = wl_container_of(listener, ls, destroy);
+    struct swm_server *server = ls->server;
+
+    wl_list_remove(&ls->map.link);
     wl_list_remove(&ls->commit.link);
     wl_list_remove(&ls->destroy.link);
     free(ls);
+
+    /* Блокировка снялась — вернуть клавиатуру верхнему окну. */
+    if (!wl_list_empty(&server->toplevels)) {
+        struct swm_toplevel *tl =
+            wl_container_of(server->toplevels.next, tl, link);
+        struct wlr_keyboard *kb = wlr_seat_get_keyboard(server->seat);
+        if (kb != NULL) {
+            wlr_seat_keyboard_notify_enter(server->seat,
+                tl->xdg_toplevel->base->surface,
+                kb->keycodes, kb->num_keycodes, &kb->modifiers);
+        }
+    }
 }
 
 static void server_new_layer_surface(struct wl_listener *listener,
@@ -794,6 +942,8 @@ static void server_new_layer_surface(struct wl_listener *listener,
     ls->layer_surface = surface;
     ls->scene = wlr_scene_layer_surface_v1_create(parent, surface);
 
+    ls->map.notify = layer_surface_map;
+    wl_signal_add(&surface->surface->events.map, &ls->map);
     ls->commit.notify = layer_surface_commit;
     wl_signal_add(&surface->surface->events.commit, &ls->commit);
     ls->destroy.notify = layer_surface_destroy;
@@ -831,6 +981,7 @@ int main(int argc, char *argv[]) {
     }
 
     struct swm_server server = {0};
+    server.master_ratio = 0.58; /* мастер чуть больше половины экрана */
     server.wl_display = wl_display_create();
     server.backend = wlr_backend_autocreate(
         wl_display_get_event_loop(server.wl_display), NULL);

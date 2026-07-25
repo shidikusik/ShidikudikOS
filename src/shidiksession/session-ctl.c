@@ -15,6 +15,7 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <systemd/sd-bus.h>
 
 #define LOGIND_DEST "org.freedesktop.login1"
@@ -64,10 +65,17 @@ static int terminate_own_session(void) {
     return r < 0 ? 1 : 0;
 }
 
+/* Блокировка — не D-Bus, а запуск нашего экрана блокировки. */
+static int lock_screen(void) {
+    execlp("shidiklock", "shidiklock", (char *)NULL);
+    perror("shidiklock");
+    return 1;
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         fprintf(stderr,
-            "usage: %s {logout|poweroff|reboot|suspend}\n", argv[0]);
+            "usage: %s {lock|logout|poweroff|reboot|suspend}\n", argv[0]);
         return 2;
     }
 
@@ -77,6 +85,8 @@ int main(int argc, char *argv[]) {
         return call_power_method("Reboot");
     if (strcmp(argv[1], "suspend") == 0)
         return call_power_method("Suspend");
+    if (strcmp(argv[1], "lock") == 0)
+        return lock_screen();
     if (strcmp(argv[1], "logout") == 0)
         return terminate_own_session();
 

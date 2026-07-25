@@ -1,7 +1,7 @@
-/* shidik-store — магазин приложений ShidikudikOS.
+/* shidik-store — магазин приложений ShidikusikOS.
  *
  * Витрина над apt: подобранный каталог приложений (GKeyFile из
- * /usr/share/shidikudik/store-catalog.ini) с фильтром по категориям и
+ * /usr/share/shidikusik/store-catalog.ini) с фильтром по категориям и
  * поиском; статус «установлено» берётся у dpkg-query; установка и
  * удаление — `pkexec apt-get -y install|remove <пакет>` с живым логом.
  *
@@ -13,7 +13,7 @@
 #include <gtk/gtk.h>
 #include <string.h>
 
-#define CATALOG "/usr/share/shidikudik/store-catalog.ini"
+#define CATALOG "/usr/share/shidikusik/store-catalog.ini"
 
 struct app_item {
     gchar *pkg;

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Shidik-Term
-Comment=Терминал ShidikudikOS
-Comment[en]=ShidikudikOS terminal
+Comment=Терминал ShidikusikOS
+Comment[en]=ShidikusikOS terminal
 Exec=shidik-term
 Type=Application
 Categories=System;TerminalEmulator;

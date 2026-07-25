@@ -4,8 +4,8 @@
 # display-manager.service — стандартной точкой входа Debian в GUI).
 
 [Unit]
-Description=ShidikudikOS Display Manager (ShidikDM)
-Documentation=https://github.com/shidikusik/ShidikudikOS
+Description=ShidikusikOS Display Manager (ShidikDM)
+Documentation=https://github.com/shidikusik/ShidikusikOS
 Conflicts=getty@tty1.service
 After=systemd-user-sessions.service getty@tty1.service plymouth-quit-wait.service
 After=systemd-logind.service

@@ -4,12 +4,22 @@
 
 shidikpanel &
 
+# Демон уведомлений и шторка быстрых настроек (Win+N).
+# Держит имя org.freedesktop.Notifications — уведомления от любых
+# приложений приходят сюда.
+shidikshade &
+
 # Агент polkit: без него pkexec (установщик, магазин приложений) не
 # сможет спросить пароль и просто откажет.
 command -v lxpolkit >/dev/null && lxpolkit &
 
+# Обои рабочего стола, если установлен swaybg
+if command -v swaybg >/dev/null && [ -f /usr/share/shidikusik/wallpaper.png ]; then
+    swaybg -m fill -i /usr/share/shidikusik/wallpaper.png &
+fi
+
 # Место для дальнейших компонентов:
-#   swaybg -i /usr/share/backgrounds/shidikudik.png &   # обои
+#   swaybg -i /usr/share/backgrounds/shidikusik.png &   # обои
 #   mako &                                              # уведомления
 
 wait

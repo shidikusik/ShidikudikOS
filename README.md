@@ -1,26 +1,23 @@
-# ShidikudikOS
+# ShidikusikOS
 
 **Русский** · [English](README.en.md)
 
-<img src="assets/logo.svg" width="160" align="right" alt="логотип ShidikudikOS — дик-дик"/>
+<img src="assets/logo.svg" width="160" align="right" alt="логотип ShidikusikOS"/>
 
-**ShidikudikOS** — учебно-практический Debian-based дистрибутив Linux с
+**ShidikusikOS** — учебно-практический Debian-based дистрибутив Linux с
 собственными, написанными с нуля Display Manager (**ShidikDM**) и Desktop
 Environment (**ShidikDE**).
 
-📀 **[Скачать готовый ISO →](https://github.com/shidikusik/ShidikudikOS/releases)**
+📀 **[Скачать готовый ISO →](https://github.com/shidikusik/ShidikusikOS/releases)**
 — live-сессия **входит без пароля**, установка на диск в один клик.
 
-Талисман — **дик-дик**: миниатюрная антилопа. Маленькая, быстрая,
-незаметная и выносливая — как и сам дистрибутив. Логотип: `assets/logo.svg`.
-
 ```
-      \ /       \ /
-      (\)  ___  (/)
-       \\ /o o\ //
-        (   v   )        ShidikudikOS
-         \ \_/ /         маленький · быстрый · свой
-          '---'
+   ██████╗
+   ██╔═══╝
+   ╚█████╗     ShidikusikOS
+    ╚═══██╗    маленький · быстрый · свой
+   ██████╔╝
+   ╚═════╝
 ```
 
 ---
@@ -34,6 +31,13 @@ Environment (**ShidikDE**).
 | ![Графический экран входа ShidikDM](assets/screenshots/shidikdm-greeter.png) | ![Рабочий стол ShidikDE с панелью](assets/screenshots/shidikde-desktop.png) | ![Меню приложений shidiklaunch](assets/screenshots/shidiklaunch-menu.png) |
 | размытые обои, часы, карточка логина | панель: меню, часы, нагрузка, питание | поиск по `.desktop`-файлам |
 
+### Шторка и блокировка
+
+| Шторка уведомлений и быстрых настроек (Win+N) | Экран блокировки (Win+L) |
+|---|---|
+| ![Шторка быстрых настроек](assets/screenshots/shidik-shade.png) | ![Экран блокировки](assets/screenshots/shidiklock.png) |
+| Wi-Fi со списком сетей, Bluetooth, громкость, яркость, история уведомлений | часы, пользователь, проверка пароля через PAM |
+
 ### Собственные приложения
 
 | Shidik-Term | Shidik-Files |
@@ -44,7 +48,7 @@ Environment (**ShidikDE**).
 | Shidik-Store | Shidik-Control |
 |---|---|
 | ![Магазин приложений Shidik-Store](assets/screenshots/shidik-store.png) | ![Центр настроек Shidik-Control](assets/screenshots/shidik-control.png) |
-| каталог с категориями, установка в один клик | система, тема, сеть, экраны, пользователь |
+| каталог с категориями, установка в один клик | 9 разделов: система, тема, сеть, Bluetooth, звук, экраны, питание, обновления, пользователь |
 
 ### Установка на диск
 
@@ -93,7 +97,7 @@ X11 для нового DE в 2026 году — тупиковая ветка: �
 ## 2. Структура репозитория
 
 ```
-ShidikudikOS/
+ShidikusikOS/
 ├── README.md / README.en.md   ← этот файл (RU/EN)
 ├── Makefile                   ← сборка/установка всех компонентов
 ├── assets/                    ← логотип, скриншоты
@@ -111,7 +115,9 @@ ShidikudikOS/
 │   ├── shidikterm/            ← Shidik-Term: терминал (GTK3 + VTE)
 │   ├── shidikcontrol/         ← Shidik-Control: центр настроек
 │   ├── shidikfiles/           ← Shidik-Files: файловый менеджер
-│   └── shidikstore/           ← Shidik-Store: магазин приложений (apt)
+│   ├── shidikstore/           ← Shidik-Store: магазин приложений (apt)
+│   ├── shidikshade/           ← шторка уведомлений и быстрых настроек
+│   └── shidiklock/            ← экран блокировки (PAM)
 ├── installer/                 ← установка на диск
 │   ├── shidik-install         ← движок: разметка, копирование, GRUB
 │   └── gui/                   ← мастер на GtkAssistant поверх него
@@ -202,9 +208,14 @@ shidikde-session (shell)
   заголовок генерируется `wayland-scanner`'ом при сборке;
 - ввод: клавиатура через `xkbcommon` (раскладка из `XKB_DEFAULT_LAYOUT`),
   курсор через `wlr_cursor` + `xcursor`;
-- хоткеи (модификатор — Win/Super): `Win+Enter` — терминал (foot),
-  `Win+D` — лаунчер, `Win+Tab` — переключение окон, `Win+Q` — закрыть
-  окно, `Win+Esc` — выход из сессии;
+- хоткеи (модификатор — Win/Super): `Win+Enter` — терминал,
+  `Win+D` — меню приложений, `Win+N` — шторка, `Win+L` — блокировка,
+  `Win+Tab` — переключение окон, `Win+Q` — закрыть окно, `Win+T` —
+  тайлинг вкл/выкл, `Win+[` и `Win+]` — ширина мастер-окна,
+  `Win+Esc` — выход из сессии;
+- **тайлинг** (Win+T): раскладка мастер/стек — первое окно занимает
+  левую часть экрана, остальные делят правую. Окна не наползают друг
+  на друга и не залезают под панель;
 - `-s <cmd>` — автостарт-скрипт получает готовый `WAYLAND_DISPLAY`.
 
 Отмеченные в коде точки роста: `wlr_foreign_toplevel_manager_v1`
@@ -244,11 +255,28 @@ logind убивает все процессы сессии, композитор
 
 **Shidik-Store** (`src/shidikstore/`) — магазин приложений, витрина над
 `apt`. Каталог описан обычным ini-файлом
-`/usr/share/shidikudik/store-catalog.ini` (29 приложений: браузеры, офис,
+`/usr/share/shidikusik/store-catalog.ini` (29 приложений: браузеры, офис,
 графика, мультимедиа, разработка, игры, системные утилиты) — его можно
 дополнять руками. Статус пакета берётся у `dpkg-query`, установка и
 удаление — `pkexec apt-get -y install|remove` с живым логом; кнопка
 «Искать во всём репозитории» открывает `apt-cache search` в терминале.
+
+### 4.6 Шторка, блокировка и тайлинг
+
+**shidikshade** (`src/shidikshade/`) — один демон в двух ролях:
+сервер уведомлений `org.freedesktop.Notifications` (всплывашки в правом
+верхнем углу + история) и шторка быстрых настроек по Win+N: Wi-Fi со
+списком сетей и вводом пароля, Bluetooth, громкость, яркость. Реальная
+работа делегируется `nmcli`, `bluetoothctl`, `wpctl`, `brightnessctl`.
+
+**shidiklock** (`src/shidiklock/`) — экран блокировки: layer-shell
+поверхность слоя OVERLAY с эксклюзивным захватом клавиатуры, пароль
+проверяется через PAM от имени текущего пользователя (root не нужен —
+работает штатный `unix_chkpwd`). Вызов: Win+L или пункт меню питания.
+
+**Тайлинг** (Win+T) живёт в композиторе: раскладка мастер/стек с
+отступами, учитывает exclusive zone панели. Ширина мастера — Win+[ и
+Win+]. При выключенном тайлинге окна открываются по центру каскадом.
 
 ### Сборка всего DE
 
@@ -273,7 +301,7 @@ sudo systemctl enable shidikdm   # автозапуск DM
 ISO загружается **сразу в рабочий стол, пароль не спрашивается**. Как это
 устроено:
 
-- chroot-хук пишет `/etc/shidikudik/autologin` с именем `shidik`;
+- chroot-хук пишет `/etc/shidikusik/autologin` с именем `shidik`;
 - ShidikDM при старте видит этот файл и логинит пользователя через
   PAM-сервис `shidikdm-autologin`, где стадия `auth` заменена на
   `pam_permit` (сессия при этом полноценная: `pam_systemd`, logind,
@@ -288,7 +316,7 @@ ISO загружается **сразу в рабочий стол, пароль
 
 ### Установщик
 
-Графический мастер `shidik-install-gui` (пункт «Установить ShidikudikOS»
+Графический мастер `shidik-install-gui` (пункт «Установить ShidikusikOS»
 в меню приложений) поверх движка `installer/shidik-install`:
 
 1. выбор целевого диска (диск стирается целиком, с подтверждением);
@@ -339,6 +367,10 @@ qemu-system-x86_64 -enable-kvm -m 4G -cdrom iso/live-image-amd64.hybrid.iso
 
 ## 7. Дорожная карта
 
+- [x] тайлинг (Win+T), центрирование окон, полноэкранный режим
+- [x] шторка уведомлений и быстрых настроек (Wi-Fi, Bluetooth, звук)
+- [x] экран блокировки через PAM
+- [x] прошивки, Bluetooth, печать, кодеки — готовность к ежедневной работе
 - [x] layer-shell в shidikwm — панель как полоса у края экрана
 - [x] автовход в live-режиме без пароля
 - [x] графический установщик (мастер на GtkAssistant)
@@ -348,7 +380,7 @@ qemu-system-x86_64 -enable-kvm -m 4G -cdrom iso/live-image-amd64.hybrid.iso
       композитор через seatd-launch, авторизация у root по сокету)
 - [x] собственный терминал Shidik-Term (GTK3 + VTE, фирменная палитра)
 - [x] центр настроек Shidik-Control (тема, сеть, экраны, пользователь)
-- [x] тёмная тема по умолчанию, обои, брендинг в /usr/share/shidikudik
+- [x] тёмная тема по умолчанию, обои, брендинг в /usr/share/shidikusik
 - [x] Shidik-Files: файловый менеджер (GTK3 + GIO: навигация, места,
       корзина, переименование, открытие файлов по умолчанию)
 - [ ] foreign-toplevel → список открытых окон в панели (таскбар)

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Сборка ISO-образа ShidikudikOS.
+# Сборка ISO-образа ShidikusikOS.
 # Запускать под root (или через sudo) на Debian-хосте с установленным
 # пакетом live-build. Всё выполняется в каталоге iso/.
 #
@@ -15,16 +15,17 @@ REPO_ROOT=$(cd .. && pwd)
 # 1. Скопировать исходники и юниты внутрь будущего образа
 #    (includes.chroot попадает в / целевой системы как есть).
 echo "== копирую исходники в includes.chroot =="
-rm -rf config/includes.chroot/opt/shidikudik
-mkdir -p config/includes.chroot/opt/shidikudik
-cp -r "$REPO_ROOT/src"     config/includes.chroot/opt/shidikudik/src
-cp -r "$REPO_ROOT/session" config/includes.chroot/opt/shidikudik/session
-cp -r "$REPO_ROOT/systemd" config/includes.chroot/opt/shidikudik/systemd
-cp -r "$REPO_ROOT/assets"  config/includes.chroot/opt/shidikudik/assets
-cp -r "$REPO_ROOT/installer" config/includes.chroot/opt/shidikudik/installer
+rm -rf config/includes.chroot/opt/shidikusik
+mkdir -p config/includes.chroot/opt/shidikusik
+cp -r "$REPO_ROOT/src"     config/includes.chroot/opt/shidikusik/src
+cp -r "$REPO_ROOT/session" config/includes.chroot/opt/shidikusik/session
+cp -r "$REPO_ROOT/systemd" config/includes.chroot/opt/shidikusik/systemd
+cp -r "$REPO_ROOT/assets"  config/includes.chroot/opt/shidikusik/assets
+cp -r "$REPO_ROOT/installer" config/includes.chroot/opt/shidikusik/installer
 # protocols/ нужен Makefile'у композитора: XML layer-shell не поставляется
 # пакетами, заголовок генерируется из него wayland-scanner'ом
-cp -r "$REPO_ROOT/protocols" config/includes.chroot/opt/shidikudik/protocols
+cp -r "$REPO_ROOT/protocols" config/includes.chroot/opt/shidikusik/protocols
+cp -r "$REPO_ROOT/docs"      config/includes.chroot/opt/shidikusik/docs
 
 # session-скрипты кладём и напрямую — Makefile shidiksession ссылается
 # на ../../session относительно src/, структура сохранена копированием.

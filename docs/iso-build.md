@@ -1,4 +1,4 @@
-# Сборка ISO-образа ShidikudikOS
+# Сборка ISO-образа ShidikusikOS
 
 Используем **live-build** — штатный инструмент Debian для сборки live/установочных
 образов. Внутри он сам вызывает `debootstrap`, поэтому отдельный ручной
@@ -24,8 +24,8 @@ iso/
 ├── auto/config                                  ← параметры lb config
 ├── build.sh                                     ← обёртка «одна кнопка»
 └── config/
-    ├── package-lists/shidikudik.list.chroot     ← пакеты образа
-    ├── hooks/live/0100-build-shidikudik.hook.chroot ← компиляция DM/DE
+    ├── package-lists/shidikusik.list.chroot     ← пакеты образа
+    ├── hooks/live/0100-build-shidikusik.hook.chroot ← компиляция DM/DE
     └── includes.chroot/                         ← файлы, копируемые в /
 ```
 
@@ -42,7 +42,7 @@ lb config          # читает auto/config, создаёт каталог con
 ```
 
 Список пакетов будущей системы —
-`config/package-lists/shidikudik.list.chroot`: база (systemd,
+`config/package-lists/shidikusik.list.chroot`: база (systemd,
 NetworkManager, PipeWire), рантайм графического стека (libwlroots-0.18,
 seatd, xwayland, GTK3, gtk-layer-shell), приложения (foot, firefox-esr)
 и — временно — компиляторы для шага 2.
@@ -53,14 +53,14 @@ seatd, xwayland, GTK3, gtk-layer-shell), приложения (foot, firefox-esr
 
 1. **`config/includes.chroot/`** — всё содержимое копируется в корень
    будущей системы как есть. `build.sh` кладёт туда исходники репозитория
-   в `/opt/shidikudik/{src,session,systemd,assets}`.
+   в `/opt/shidikusik/{src,session,systemd,assets}`.
 
-2. **`config/hooks/live/0100-build-shidikudik.hook.chroot`** — скрипт,
+2. **`config/hooks/live/0100-build-shidikusik.hook.chroot`** — скрипт,
    который live-build выполняет **внутри chroot** после установки пакетов:
 
    ```sh
    for component in shidikdm shidikwm shidikpanel shidiklaunch shidiksession; do
-       make -C /opt/shidikudik/src/$component clean all install
+       make -C /opt/shidikusik/src/$component clean all install
    done
    ```
 
@@ -78,7 +78,7 @@ seatd, xwayland, GTK3, gtk-layer-shell), приложения (foot, firefox-esr
 Тот же хук устанавливает юнит и включает его:
 
 ```sh
-install -Dm644 /opt/shidikudik/systemd/shidikdm.service \
+install -Dm644 /opt/shidikusik/systemd/shidikdm.service \
     /etc/systemd/system/shidikdm.service
 systemctl enable shidikdm.service     # в chroot это просто создаёт симлинки
 systemctl set-default graphical.target
@@ -162,7 +162,7 @@ sudo chroot rootfs /bin/bash
 
 # 3. внутри: пакеты, ядро, наш код, юнит
 apt install linux-image-amd64 live-boot systemd-sysv <пакеты из списка>
-make -C /opt/shidikudik/src/... install
+make -C /opt/shidikusik/src/... install
 systemctl enable shidikdm && systemctl set-default graphical.target
 exit
 

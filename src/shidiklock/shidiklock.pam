@@ -1,0 +1,7 @@
+# PAM-конфигурация экрана блокировки (/etc/pam.d/shidiklock).
+# Только проверка пароля текущего пользователя — сессию не открываем,
+# она уже открыта ShidikDM. pam_unix для непривилегированного процесса
+# работает через setuid-помощник unix_chkpwd.
+
+@include  common-auth
+@include  common-account

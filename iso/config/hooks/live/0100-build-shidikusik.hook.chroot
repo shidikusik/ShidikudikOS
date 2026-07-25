@@ -1,30 +1,44 @@
 #!/bin/sh
 # Chroot-хук live-build: выполняется ВНУТРИ будущей системы на этапе
 # `lb build`. Компилирует ShidikDM и ShidikDE из исходников, которые
-# build.sh скопировал в /opt/shidikudik/src (через includes.chroot),
+# build.sh скопировал в /opt/shidikusik/src (через includes.chroot),
 # устанавливает их и включает автозапуск ShidikDM.
 set -e
 
-echo "== ShidikudikOS: сборка ShidikDM/ShidikDE =="
-SRC=/opt/shidikudik/src
+echo "== ShidikusikOS: сборка ShidikDM/ShidikDE =="
+SRC=/opt/shidikusik/src
 
 for component in shidikdm shidikwm shidikpanel shidiklaunch shidiksession \
                  shidikgreet shidikterm shidikcontrol shidikfiles \
-                 shidikstore; do
+                 shidikstore shidikshade shidiklock; do
     echo "-- сборка $component"
     make -C "$SRC/$component" clean all install
 done
 
 echo "-- сборка графического установщика"
-make -C /opt/shidikudik/installer/gui clean all install
+make -C /opt/shidikusik/installer/gui clean all install
 
 # Брендинг: логотип и обои (нужны greeter'у и Shidik-Control)
-install -Dm644 /opt/shidikudik/assets/logo.svg \
-    /usr/share/shidikudik/logo.svg
-install -Dm644 /opt/shidikudik/assets/wallpaper.png \
-    /usr/share/shidikudik/wallpaper.png
-install -Dm644 /opt/shidikudik/assets/wallpaper-blur.png \
-    /usr/share/shidikudik/wallpaper-blur.png
+install -Dm644 /opt/shidikusik/assets/logo.svg \
+    /usr/share/shidikusik/logo.svg
+install -Dm644 /opt/shidikusik/assets/wallpaper.png \
+    /usr/share/shidikusik/wallpaper.png
+install -Dm644 /opt/shidikusik/assets/wallpaper-blur.png \
+    /usr/share/shidikusik/wallpaper-blur.png
+install -Dm644 /opt/shidikusik/docs/hardware.md \
+    /usr/share/doc/shidikusik/hardware.md 2>/dev/null || true
+
+# Сервисы, которые должны работать на постоянной основе
+systemctl enable bluetooth 2>/dev/null || true
+systemctl enable cups 2>/dev/null || true
+systemctl enable avahi-daemon 2>/dev/null || true
+systemctl enable systemd-timesyncd 2>/dev/null || true
+
+# Flathub — чтобы магазин приложений дополнялся flatpak-программами
+if command -v flatpak >/dev/null; then
+    flatpak remote-add --if-not-exists flathub \
+        https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
+fi
 
 # Live-пользователь создаётся статически: полагаться на live-config
 # нельзя — проверено на реальной сборке, что с нестандартным DM его
@@ -42,19 +56,19 @@ echo 'shidik:live' | chpasswd
 # на установленной системе вход и админские действия были под паролем.
 
 # 1. Автовход без пароля: ShidikDM читает этот файл при старте
-install -d /etc/shidikudik
-echo 'shidik' > /etc/shidikudik/autologin
+install -d /etc/shidikusik
+echo 'shidik' > /etc/shidikusik/autologin
 
 # 2. sudo без пароля — в live-сессии пароль всё равно общеизвестен
 printf 'shidik ALL=(ALL) NOPASSWD: ALL\n' \
-    > /etc/sudoers.d/shidikudik-live
-chmod 440 /etc/sudoers.d/shidikudik-live
+    > /etc/sudoers.d/shidikusik-live
+chmod 440 /etc/sudoers.d/shidikusik-live
 
 # 3. polkit без запроса пароля: иначе установщик и магазин приложений
 #    просили бы пароль, которого у live-пользователя нет
 install -d /etc/polkit-1/rules.d
-cat > /etc/polkit-1/rules.d/49-shidikudik-live.rules <<'EOF'
-// Live-сессия ShidikudikOS: административные действия без пароля.
+cat > /etc/polkit-1/rules.d/49-shidikusik-live.rules <<'EOF'
+// Live-сессия ShidikusikOS: административные действия без пароля.
 // Файл удаляется при установке на диск.
 polkit.addRule(function(action, subject) {
     if (subject.user == "shidik") {
@@ -64,9 +78,9 @@ polkit.addRule(function(action, subject) {
 EOF
 
 # systemd: наш DM становится display-manager'ом системы
-install -Dm644 /opt/shidikudik/systemd/shidikdm.service \
+install -Dm644 /opt/shidikusik/systemd/shidikdm.service \
     /etc/systemd/system/shidikdm.service
 systemctl enable shidikdm.service
 systemctl set-default graphical.target
 
-echo "== ShidikudikOS: готово =="
+echo "== ShidikusikOS: готово =="

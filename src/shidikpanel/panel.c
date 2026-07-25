@@ -71,44 +71,91 @@ static void on_menu_clicked(GtkButton *b, gpointer data) {
     spawn("shidiklaunch");
 }
 
+static void on_shade_clicked(GtkButton *b, gpointer data) {
+    (void)b; (void)data;
+    spawn("shidikshade --toggle");
+}
+
+/* Диалог питания — отдельное окно по центру экрана.
+ *
+ * Раньше это был GtkPopover, привязанный к кнопке панели. Панель —
+ * layer-shell поверхность у верхнего края, поэтому popover выезжал
+ * вверх за пределы экрана. Обычное окно композитор центрирует сам. */
 static void on_power_action(GtkButton *b, gpointer data) {
-    (void)b;
+    GtkWidget *dialog = gtk_widget_get_toplevel(GTK_WIDGET(b));
     gchar *cmd = g_strdup_printf("shidik-session-ctl %s", (const char *)data);
     spawn(cmd);
     g_free(cmd);
+    if (GTK_IS_WINDOW(dialog))
+        gtk_widget_destroy(dialog);
 }
 
-static GtkWidget *make_power_menu(void) {
-    GtkWidget *button = gtk_menu_button_new();
+static gboolean power_dialog_key(GtkWidget *w, GdkEventKey *ev,
+        gpointer data) {
+    (void)data;
+    if (ev->keyval == GDK_KEY_Escape) {
+        gtk_widget_destroy(w);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static void on_power_clicked(GtkButton *b, gpointer data) {
+    (void)b; (void)data;
+
+    GtkWidget *win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(win), "Завершение работы");
+    gtk_window_set_resizable(GTK_WINDOW(win), FALSE);
+    gtk_container_set_border_width(GTK_CONTAINER(win), 20);
+    g_signal_connect(win, "key-press-event",
+        G_CALLBACK(power_dialog_key), NULL);
+
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    gtk_container_add(GTK_CONTAINER(win), box);
+
+    GtkWidget *title = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(title), "<b>Завершение работы</b>");
+    gtk_widget_set_halign(title, GTK_ALIGN_START);
+    gtk_box_pack_start(GTK_BOX(box), title, FALSE, FALSE, 4);
+
+    /* подпись, иконка темы, аргумент shidik-session-ctl */
+    const char *actions[][3] = {
+        { "Заблокировать", "system-lock-screen-symbolic",   "lock"     },
+        { "Спящий режим",  "media-playback-pause-symbolic", "suspend"  },
+        { "Выйти",         "system-log-out-symbolic",       "logout"   },
+        { "Перезагрузить", "view-refresh-symbolic",         "reboot"   },
+        { "Выключить",     "system-shutdown-symbolic",      "poweroff" },
+    };
+    for (size_t i = 0; i < G_N_ELEMENTS(actions); i++) {
+        GtkWidget *item = gtk_button_new_with_label(actions[i][0]);
+        gtk_button_set_image(GTK_BUTTON(item),
+            gtk_image_new_from_icon_name(actions[i][1],
+                GTK_ICON_SIZE_BUTTON));
+        gtk_button_set_always_show_image(GTK_BUTTON(item), TRUE);
+        gtk_widget_set_size_request(item, 250, 42);
+        g_signal_connect(item, "clicked",
+            G_CALLBACK(on_power_action), (gpointer)actions[i][2]);
+        gtk_box_pack_start(GTK_BOX(box), item, FALSE, FALSE, 0);
+    }
+
+    GtkWidget *cancel = gtk_button_new_with_label("Отмена");
+    g_signal_connect_swapped(cancel, "clicked",
+        G_CALLBACK(gtk_widget_destroy), win);
+    gtk_box_pack_start(GTK_BOX(box), cancel, FALSE, FALSE, 6);
+
+    gtk_widget_show_all(win);
+}
+
+static GtkWidget *make_power_button(void) {
+    GtkWidget *button = gtk_button_new();
     /* Иконка из темы, а не символ ⏻ (U+23FB): его нет в DejaVu, и
      * вместо кнопки рисуется пустой квадрат. */
     gtk_button_set_image(GTK_BUTTON(button),
         gtk_image_new_from_icon_name("system-shutdown-symbolic",
             GTK_ICON_SIZE_BUTTON));
-    /* без always_show_image GtkMenuButton рисует свою стрелку вместо
-     * заданной иконки */
     gtk_button_set_always_show_image(GTK_BUTTON(button), TRUE);
     gtk_widget_set_tooltip_text(button, "Завершение работы");
-
-    GtkWidget *popover = gtk_popover_new(button);
-    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 8);
-
-    const char *actions[][2] = {
-        { "Выйти",         "logout"   },
-        { "Перезагрузка",  "reboot"   },
-        { "Выключение",    "poweroff" },
-        { "Сон",           "suspend"  },
-    };
-    for (size_t i = 0; i < G_N_ELEMENTS(actions); i++) {
-        GtkWidget *item = gtk_button_new_with_label(actions[i][0]);
-        g_signal_connect(item, "clicked",
-            G_CALLBACK(on_power_action), (gpointer)actions[i][1]);
-        gtk_box_pack_start(GTK_BOX(box), item, FALSE, FALSE, 0);
-    }
-    gtk_widget_show_all(box);
-    gtk_container_add(GTK_CONTAINER(popover), box);
-    gtk_menu_button_set_popover(GTK_MENU_BUTTON(button), popover);
+    g_signal_connect(button, "clicked", G_CALLBACK(on_power_clicked), NULL);
     return button;
 }
 
@@ -162,7 +209,19 @@ int main(int argc, char *argv[]) {
     clock_label = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(bar), clock_label, FALSE, FALSE, 8);
 
-    gtk_box_pack_start(GTK_BOX(bar), make_power_menu(), FALSE, FALSE, 0);
+    /* шторка уведомлений и быстрых настроек (она же Win+N) */
+    GtkWidget *shade_btn = gtk_button_new();
+    gtk_button_set_image(GTK_BUTTON(shade_btn),
+        gtk_image_new_from_icon_name("preferences-system-symbolic",
+            GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_always_show_image(GTK_BUTTON(shade_btn), TRUE);
+    gtk_widget_set_tooltip_text(shade_btn,
+        "Уведомления и быстрые настройки (Win+N)");
+    g_signal_connect(shade_btn, "clicked",
+        G_CALLBACK(on_shade_clicked), NULL);
+    gtk_box_pack_start(GTK_BOX(bar), shade_btn, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(bar), make_power_button(), FALSE, FALSE, 0);
 
     update_status(NULL);
     g_timeout_add_seconds(1, update_status, NULL);

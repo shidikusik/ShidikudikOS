@@ -1,5 +1,5 @@
 #!/bin/sh
-# live-build: параметры дистрибутива ShidikudikOS.
+# live-build: параметры дистрибутива ShidikusikOS.
 # Вызывается автоматически командой `lb config` из каталога iso/.
 set -e
 
@@ -11,8 +11,8 @@ lb config noauto \
     --debian-installer none \
     --linux-flavours amd64 \
     --apt-recommends false \
-    --iso-application "ShidikudikOS" \
-    --iso-publisher "ShidikudikOS project" \
-    --iso-volume "ShidikudikOS" \
-    --bootappend-live "boot=live components quiet splash username=shidik hostname=shidikudik" \
+    --iso-application "ShidikusikOS" \
+    --iso-publisher "ShidikusikOS project" \
+    --iso-volume "ShidikusikOS" \
+    --bootappend-live "boot=live components quiet splash username=shidik hostname=shidikusik" \
     "${@}"

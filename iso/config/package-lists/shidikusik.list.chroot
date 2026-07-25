@@ -1,13 +1,17 @@
 # Пакеты, попадающие в chroot (то есть в саму ОС на ISO).
+# Набор рассчитан на постоянное использование, а не только на демо.
 
 # --- база ---
 live-boot
 live-config
 systemd-sysv
+systemd-timesyncd
 sudo
 locales
 console-setup
+keyboard-configuration
 network-manager
+wpasupplicant
 # polkit: pkexec нужен установщику и магазину, lxpolkit — агент, который
 # рисует запрос пароля внутри сессии (в trixie polkit разбит на пакеты)
 polkitd
@@ -15,7 +19,31 @@ pkexec
 lxpolkit
 pipewire
 pipewire-pulse
+pipewire-audio
 wireplumber
+
+# --- прошивки и микрокод ---
+# Без них на реальном железе молчат Wi-Fi, Bluetooth, звук и видео.
+# Пакеты живут в секции non-free-firmware (включена в auto/config).
+firmware-linux
+firmware-misc-nonfree
+firmware-iwlwifi
+firmware-realtek
+firmware-atheros
+firmware-brcm80211
+firmware-sof-signed
+intel-microcode
+amd64-microcode
+
+# --- Bluetooth ---
+bluez
+bluez-tools
+rfkill
+
+# --- питание, ноутбуки ---
+brightnessctl
+acpi
+powertop
 
 # --- рантайм графического стека (Wayland/wlroots) ---
 # Mesa обязательна: без DRI-драйверов wlroots не создаст GLES-рендерер
@@ -39,23 +67,61 @@ libpam0g
 libsystemd0
 adwaita-icon-theme
 fonts-dejavu
+fonts-noto-core
+fonts-noto-color-emoji
+fonts-liberation2
 # без загрузчика SVG для gdk-pixbuf логотип .svg не отрисуется
 # в Shidik-Control и в установщике
 librsvg2-common
+swaybg
 xdg-desktop-portal
 xdg-desktop-portal-wlr
+xdg-desktop-portal-gtk
 
 # --- пользовательские приложения ---
 foot
 firefox-esr
+flatpak
 libvte-2.91-0
 # gvfs — корзина и монтирование для Shidik-Files;
 # shared-mime-info — типы файлов (иконки, «открыть с помощью»)
 gvfs
+gvfs-fuse
+gvfs-backends
+udisks2
 shared-mime-info
+
+# --- файловые системы носителей ---
+ntfs-3g
+exfatprogs
+btrfs-progs
+e2fsprogs
+
+# --- печать и сеть ---
+cups
+cups-filters
+avahi-daemon
+openssh-client
+
+# --- повседневные утилиты ---
+htop
+curl
+wget
+git
+nano
+less
+man-db
+tree
+unzip
+zip
+7zip
+xz-utils
+ca-certificates
+ffmpeg
 
 # --- инсталлер shidik-install ---
 parted
+gdisk
 dosfstools
 rsync
 efibootmgr
@@ -63,6 +129,7 @@ grub-common
 grub2-common
 grub-pc-bin
 grub-efi-amd64-bin
+os-prober
 
 # --- инструменты сборки: нужны chroot-хуку, который компилирует
 #     ShidikDM/ShidikDE из исходников; при желании можно удалить их

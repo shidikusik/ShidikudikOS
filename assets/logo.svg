@@ -1,56 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <!-- ShidikudikOS — логотип: стилизованный дик-дик (миниатюрная антилопа).
-       Символ дистрибутива: маленький, быстрый, незаметный, но выносливый. -->
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1a1b26"/>
-      <stop offset="1" stop-color="#24283b"/>
-    </linearGradient>
-    <linearGradient id="fur" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#f0a860"/>
-      <stop offset="1" stop-color="#d98a3d"/>
-    </linearGradient>
-  </defs>
+  <!-- ShidikusikOS — логотип: монограмма «S» и блок-курсор.
+       Без талисмана и без градиентов: сплошные цвета рисуются
+       одинаково во всех отрисовщиках (GTK, ImageMagick, браузер). -->
 
-  <!-- фон -->
-  <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#bg)"/>
+  <!-- подложка -->
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="#1a1b26"/>
+  <rect x="8" y="8" width="240" height="240" rx="56"
+        fill="none" stroke="#2f3550" stroke-width="2"/>
 
-  <!-- рожки -->
-  <path d="M96 62 L104 92 L116 88 Z" fill="#8a5a2b"/>
-  <path d="M160 62 L152 92 L140 88 Z" fill="#8a5a2b"/>
+  <!-- монограмма S -->
+  <path d="M 174 92
+           C 174 74 150 64 126 64
+           C 100 64 78 76 78 98
+           C 78 120 104 126 128 130
+           C 150 134 174 140 174 160
+           C 174 182 150 192 126 192
+           C 100 192 78 180 78 162"
+        fill="none" stroke="#f0a860" stroke-width="26"
+        stroke-linecap="round"/>
 
-  <!-- уши -->
-  <ellipse cx="70" cy="96" rx="26" ry="38" fill="url(#fur)" transform="rotate(-28 70 96)"/>
-  <ellipse cx="70" cy="98" rx="13" ry="24" fill="#f6d3a4" transform="rotate(-28 70 98)"/>
-  <ellipse cx="186" cy="96" rx="26" ry="38" fill="url(#fur)" transform="rotate(28 186 96)"/>
-  <ellipse cx="186" cy="98" rx="13" ry="24" fill="#f6d3a4" transform="rotate(28 186 98)"/>
-
-  <!-- голова -->
-  <path d="M128 74
-           C 168 74 186 104 184 134
-           C 182 162 166 178 150 192
-           C 142 200 136 210 128 210
-           C 120 210 114 200 106 192
-           C 90 178 74 162 72 134
-           C 70 104 88 74 128 74 Z"
-        fill="url(#fur)"/>
-
-  <!-- морда -->
-  <path d="M128 150 C 146 150 152 168 148 182 C 144 196 136 206 128 206
-           C 120 206 112 196 108 182 C 104 168 110 150 128 150 Z"
-        fill="#f6d3a4"/>
-
-  <!-- нос -->
-  <ellipse cx="128" cy="196" rx="10" ry="7" fill="#2b2d3a"/>
-
-  <!-- глаза (большие, как у настоящего дик-дика) -->
-  <circle cx="100" cy="128" r="14" fill="#2b2d3a"/>
-  <circle cx="156" cy="128" r="14" fill="#2b2d3a"/>
-  <circle cx="104" cy="124" r="4.5" fill="#ffffff"/>
-  <circle cx="160" cy="124" r="4.5" fill="#ffffff"/>
-
-  <!-- надпись -->
-  <text x="128" y="238" text-anchor="middle"
-        font-family="DejaVu Sans, sans-serif" font-size="17" font-weight="bold"
-        fill="#c0caf5" letter-spacing="1">ShidikudikOS</text>
+  <!-- блок-курсор: намёк на терминал и на то, что система своя -->
+  <rect x="186" y="176" width="20" height="20" rx="5" fill="#7aa2f7"/>
 </svg>

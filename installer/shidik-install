@@ -1,5 +1,5 @@
 #!/bin/bash
-# shidik-install — установщик ShidikudikOS на диск.
+# shidik-install — установщик ShidikusikOS на диск.
 #
 # Два режима:
 #   интерактивный (по умолчанию): вопросы в консоли, в стиле ShidikDM;
@@ -20,7 +20,7 @@ C_RESET='\033[0m'
 
 UNATTENDED=0
 DISK=""
-NEWHOST="shidikudik"
+NEWHOST="shidikusik"
 NEWUSER=""
 NEWTZ="Europe/Moscow"
 PASSWORD=""
@@ -52,7 +52,7 @@ while [ $# -gt 0 ]; do
 Использование:
   shidik-install                       интерактивная установка
   shidik-install --unattended --disk /dev/sda --user ivan \\
-      [--hostname shidikudik] [--timezone Europe/Moscow] --password-stdin
+      [--hostname shidikusik] [--timezone Europe/Moscow] --password-stdin
 Пароль в неинтерактивном режиме читается первой строкой stdin.
 EOF
             exit 0 ;;
@@ -62,7 +62,7 @@ EOF
 done
 
 [ "$(id -u)" = 0 ] || die "нужен root: sudo shidik-install"
-[ -d /run/live ] || die "запускать нужно из live-сессии ShidikudikOS"
+[ -d /run/live ] || die "запускать нужно из live-сессии ShidikusikOS"
 
 # ---------- сбор параметров ----------
 if [ "$UNATTENDED" = 1 ]; then
@@ -78,7 +78,7 @@ else
       \ /       \ /
       (\)  ___  (/)
        \\ /o o\ //
-        (   v   )        Установка ShidikudikOS
+        (   v   )        Установка ShidikusikOS
          \ \_/ /         на жёсткий диск
           '---'
 BANNER
@@ -87,7 +87,7 @@ BANNER
     echo "Доступные диски:"
     lsblk -dno NAME,SIZE,MODEL,TYPE | awk '$NF=="disk" {printf "  /dev/%-10s %8s  %s\n", $1, $2, substr($0, index($0,$3))}'
     echo
-    echo "ВНИМАНИЕ: если ShidikudikOS запущена с флешки — не выбирайте её."
+    echo "ВНИМАНИЕ: если ShidikusikOS запущена с флешки — не выбирайте её."
     read -rp "Целевой диск (например /dev/sda): " DISK
     [ -b "$DISK" ] || die "$DISK — не блочное устройство"
 
@@ -96,8 +96,8 @@ BANNER
     read -rp "Введите YES заглавными, чтобы продолжить: " CONFIRM
     [ "$CONFIRM" = "YES" ] || die "установка отменена"
 
-    read -rp "Имя компьютера [shidikudik]: " ANS
-    NEWHOST="${ANS:-shidikudik}"
+    read -rp "Имя компьютера [shidikusik]: " ANS
+    NEWHOST="${ANS:-shidikusik}"
     read -rp "Часовой пояс [Europe/Moscow]: " ANS
     NEWTZ="${ANS:-Europe/Moscow}"
     while :; do
@@ -191,12 +191,33 @@ chroot "$TARGET" passwd -l root >/dev/null   # root заперт, работае
 progress 80 "Убираю live-настройки"
 # Автовход и беспарольный sudo — только для live-сессии; на диске
 # система должна спрашивать пароль как обычно.
-rm -f "$TARGET/etc/shidikudik/autologin"
-rm -f "$TARGET/etc/sudoers.d/shidikudik-live"
-rm -f "$TARGET/etc/polkit-1/rules.d/49-shidikudik-live.rules"
-rm -f "$TARGET/usr/share/applications/shidikudik-installer.desktop"
+rm -f "$TARGET/etc/shidikusik/autologin"
+rm -f "$TARGET/etc/sudoers.d/shidikusik-live"
+rm -f "$TARGET/etc/polkit-1/rules.d/49-shidikusik-live.rules"
+rm -f "$TARGET/usr/share/applications/shidikusik-installer.desktop"
 if [ "$NEWUSER" != "shidik" ]; then
     chroot "$TARGET" userdel -r shidik 2>/dev/null || true
+fi
+
+# Файл подкачки: без него система на 4 ГБ ОЗУ упирается в OOM, а
+# гибернация невозможна в принципе. Размер — половина ОЗУ, но не
+# больше 8 ГиБ и только если на диске достаточно места.
+progress 82 "Создаю файл подкачки"
+MEM_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
+SWAP_MB=$((MEM_KB / 2048))
+[ "$SWAP_MB" -gt 8192 ] && SWAP_MB=8192
+[ "$SWAP_MB" -lt 512 ] && SWAP_MB=512
+FREE_MB=$(df -Pm "$TARGET" | awk 'NR==2 {print $4}')
+if [ "$FREE_MB" -gt $((SWAP_MB + 4096)) ]; then
+    fallocate -l "${SWAP_MB}M" "$TARGET/swapfile" 2>/dev/null || \
+        dd if=/dev/zero of="$TARGET/swapfile" bs=1M count="$SWAP_MB" \
+           status=none
+    chmod 600 "$TARGET/swapfile"
+    mkswap "$TARGET/swapfile" >/dev/null
+    HAVE_SWAP=1
+else
+    echo "мало места — файл подкачки пропущен"
+    HAVE_SWAP=0
 fi
 
 ROOT_UUID=$(blkid -s UUID -o value "$ROOT")
@@ -205,6 +226,7 @@ ROOT_UUID=$(blkid -s UUID -o value "$ROOT")
     if [ "$MODE" = uefi ]; then
         echo "UUID=$(blkid -s UUID -o value "$ESP") /boot/efi vfat umask=0077 0 2"
     fi
+    [ "$HAVE_SWAP" = 1 ] && echo "/swapfile none swap sw 0 0"
 } > "$TARGET/etc/fstab"
 
 # уникальный machine-id на первом старте
@@ -217,9 +239,15 @@ chroot "$TARGET" env DEBIAN_FRONTEND=noninteractive \
 
 # ---------- загрузчик ----------
 progress 90 "Устанавливаю загрузчик GRUB ($MODE)"
+# Найти соседние ОС (Windows и другие Linux) и добавить их в меню —
+# без этого установка «рядом» отрезала бы вторую систему.
+if [ -x "$TARGET/usr/bin/os-prober" ] || \
+   [ -x "$TARGET/usr/sbin/os-prober" ]; then
+    echo 'GRUB_DISABLE_OS_PROBER=false' >> "$TARGET/etc/default/grub"
+fi
 if [ "$MODE" = uefi ]; then
     chroot "$TARGET" grub-install --target=x86_64-efi \
-        --efi-directory=/boot/efi --bootloader-id=ShidikudikOS --recheck \
+        --efi-directory=/boot/efi --bootloader-id=ShidikusikOS --recheck \
         >/dev/null 2>&1
 else
     chroot "$TARGET" grub-install --target=i386-pc --recheck "$DISK" \

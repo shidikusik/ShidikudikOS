@@ -1,4 +1,4 @@
-/* shidik-install-gui — графический установщик ShidikudikOS.
+/* shidik-install-gui — графический установщик ShidikusikOS.
  *
  * Мастер (GtkAssistant) из пяти страниц: приветствие → выбор диска →
  * пользователь и пароль → подтверждение → установка с прогрессом.
@@ -14,7 +14,7 @@
 #include <string.h>
 
 static GtkWidget *assistant;
-static GtkWidget *disk_combo, *disk_warning;
+static GtkWidget *disk_combo, *disk_warning, *disk_manual;
 static GtkWidget *host_entry, *tz_combo, *user_entry, *pass_entry,
                  *pass2_entry, *user_hint;
 static GtkWidget *summary_label, *progress_bar, *log_view, *reboot_button;
@@ -24,46 +24,94 @@ static gboolean install_done;
 
 /* ---------- страница «Диск» ---------- */
 
-static void fill_disks(void) {
-    gchar *out = NULL;
-    if (!g_spawn_command_line_sync("lsblk -dnro NAME,SIZE,MODEL,TYPE",
-            &out, NULL, NULL, NULL) || !out)
-        return;
-
-    gchar **lines = g_strsplit(out, "\n", -1);
-    for (gchar **l = lines; *l; l++) {
-        if (**l == '\0')
-            continue;
-        gchar **f = g_strsplit(*l, " ", 4);
-        guint n = g_strv_length(f);
-        /* формат: NAME SIZE [MODEL] TYPE — тип всегда последний */
-        if (n >= 3 && g_strcmp0(f[n - 1], "disk") == 0) {
-            gchar *label = g_strdup_printf("/dev/%s — %s%s%s", f[0], f[1],
-                (n == 4) ? "  " : "", (n == 4) ? f[2] : "");
-            gchar *id = g_strdup_printf("/dev/%s", f[0]);
-            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(disk_combo),
-                id, label);
-            g_free(label);
-            g_free(id);
-        }
-        g_strfreev(f);
-    }
-    g_strfreev(lines);
-    g_free(out);
-    gtk_combo_box_set_active(GTK_COMBO_BOX(disk_combo), 0);
+/* Достаёт значение ключа из строки вида KEY="value" KEY2="value2". */
+static gchar *pairs_value(const gchar *line, const gchar *key) {
+    gchar *needle = g_strdup_printf("%s=\"", key);
+    const gchar *p = strstr(line, needle);
+    g_free(needle);
+    if (!p)
+        return NULL;
+    p += strlen(key) + 2;
+    const gchar *end = strchr(p, '"');
+    return end ? g_strndup(p, end - p) : NULL;
 }
 
-static void on_disk_changed(GtkComboBox *c, gpointer data) {
-    (void)data;
-    const gchar *id = gtk_combo_box_get_active_id(c);
-    gtk_assistant_set_page_complete(GTK_ASSISTANT(assistant),
-        page_disk, id != NULL);
-    if (id) {
-        gchar *msg = g_strdup_printf(
-            "Все данные на %s будут удалены безвозвратно.", id);
+static void fill_disks(void) {
+    /* Формат «пар» (-P) вместо колонок: не ломается, когда MODEL пустая
+     * или содержит пробелы — именно на этом ломался прежний разбор. */
+    gchar *out = NULL;
+    gint found = 0;
+    if (g_spawn_command_line_sync("lsblk -dn -P -o NAME,SIZE,TYPE,MODEL",
+            &out, NULL, NULL, NULL) && out) {
+        gchar **lines = g_strsplit(out, "\n", -1);
+        for (gchar **l = lines; *l; l++) {
+            if (**l == '\0')
+                continue;
+            gchar *name = pairs_value(*l, "NAME");
+            gchar *size = pairs_value(*l, "SIZE");
+            gchar *type = pairs_value(*l, "TYPE");
+            gchar *model = pairs_value(*l, "MODEL");
+
+            /* только настоящие диски: не разделы, не CD, не loop */
+            if (name && size && g_strcmp0(type, "disk") == 0 &&
+                    !g_str_has_prefix(name, "loop") &&
+                    !g_str_has_prefix(name, "ram")) {
+                gchar *id = g_strdup_printf("/dev/%s", name);
+                gchar *label = (model && *model)
+                    ? g_strdup_printf("%s — %s (%s)", id, size, model)
+                    : g_strdup_printf("%s — %s", id, size);
+                gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(disk_combo),
+                    id, label);
+                g_free(label);
+                g_free(id);
+                found++;
+            }
+            g_free(name);
+            g_free(size);
+            g_free(type);
+            g_free(model);
+        }
+        g_strfreev(lines);
+    }
+    g_free(out);
+
+    if (found > 0) {
+        gtk_combo_box_set_active(GTK_COMBO_BOX(disk_combo), 0);
+    } else {
+        gtk_label_set_text(GTK_LABEL(disk_warning),
+            "Диски не найдены автоматически — укажите устройство вручную "
+            "в поле ниже (например /dev/sda или /dev/nvme0n1).");
+    }
+}
+
+/* Ручной ввод перекрывает выпадающий список: путь к диску можно задать
+ * всегда, даже если автоопределение не сработало. */
+static const gchar *selected_disk(void) {
+    const gchar *manual = gtk_entry_get_text(GTK_ENTRY(disk_manual));
+    if (manual && *manual)
+        return manual;
+    return gtk_combo_box_get_active_id(GTK_COMBO_BOX(disk_combo));
+}
+
+static void update_disk_page(void) {
+    const gchar *disk = selected_disk();
+    gboolean ok = disk && *disk && g_file_test(disk, G_FILE_TEST_EXISTS);
+
+    if (disk && *disk) {
+        gchar *msg = ok
+            ? g_strdup_printf("Все данные на %s будут удалены безвозвратно.",
+                              disk)
+            : g_strdup_printf("Устройство %s не найдено.", disk);
         gtk_label_set_text(GTK_LABEL(disk_warning), msg);
         g_free(msg);
     }
+    gtk_assistant_set_page_complete(GTK_ASSISTANT(assistant),
+        page_disk, ok);
+}
+
+static void on_disk_changed(GtkWidget *w, gpointer data) {
+    (void)w; (void)data;
+    update_disk_page();
 }
 
 /* ---------- страница «Пользователь» ---------- */
@@ -167,7 +215,7 @@ static void on_child_exit(GPid pid, gint status, gpointer data) {
 
 static void start_install(void) {
     const gchar *disk =
-        gtk_combo_box_get_active_id(GTK_COMBO_BOX(disk_combo));
+        selected_disk();
     const gchar *host = gtk_entry_get_text(GTK_ENTRY(host_entry));
     const gchar *user = gtk_entry_get_text(GTK_ENTRY(user_entry));
     const gchar *pass = gtk_entry_get_text(GTK_ENTRY(pass_entry));
@@ -234,7 +282,7 @@ static void on_prepare(GtkAssistant *a, GtkWidget *page, gpointer data) {
             "Пользователь:\t%s\n\n"
             "Нажмите «Установить», чтобы начать. Прервать установку "
             "после начала записи на диск будет нельзя.",
-            gtk_combo_box_get_active_id(GTK_COMBO_BOX(disk_combo)),
+            selected_disk(),
             gtk_entry_get_text(GTK_ENTRY(host_entry)),
             tz ? tz : "Europe/Moscow",
             gtk_entry_get_text(GTK_ENTRY(user_entry)));
@@ -290,7 +338,7 @@ int main(int argc, char *argv[]) {
     gtk_init(&argc, &argv);
 
     assistant = gtk_assistant_new();
-    gtk_window_set_title(GTK_WINDOW(assistant), "Установка ShidikudikOS");
+    gtk_window_set_title(GTK_WINDOW(assistant), "Установка ShidikusikOS");
     gtk_window_set_default_size(GTK_WINDOW(assistant), 640, 480);
     g_signal_connect(assistant, "cancel",
         G_CALLBACK(on_cancel_or_close), NULL);
@@ -302,9 +350,9 @@ int main(int argc, char *argv[]) {
     /* 1. Приветствие */
     GtkWidget *intro = make_page(GTK_ASSISTANT(assistant),
         GTK_ASSISTANT_PAGE_INTRO, "Добро пожаловать");
-    if (g_file_test("/usr/share/shidikudik/logo.svg", G_FILE_TEST_EXISTS)) {
+    if (g_file_test("/usr/share/shidikusik/logo.svg", G_FILE_TEST_EXISTS)) {
         GdkPixbuf *pb = gdk_pixbuf_new_from_file_at_size(
-            "/usr/share/shidikudik/logo.svg", 128, 128, NULL);
+            "/usr/share/shidikusik/logo.svg", 128, 128, NULL);
         if (pb) {
             GtkWidget *img = gtk_image_new_from_pixbuf(pb);
             g_object_unref(pb);
@@ -312,7 +360,7 @@ int main(int argc, char *argv[]) {
         }
     }
     GtkWidget *hello = gtk_label_new(
-        "Этот мастер установит ShidikudikOS на жёсткий диск.\n\n"
+        "Этот мастер установит ShidikusikOS на жёсткий диск.\n\n"
         "Вы выберете диск, укажете имя компьютера и создадите\n"
         "своего пользователя с собственным паролем.\n\n"
         "Live-система продолжит работать до перезагрузки.");
@@ -327,23 +375,35 @@ int main(int argc, char *argv[]) {
     g_signal_connect(disk_combo, "changed",
         G_CALLBACK(on_disk_changed), NULL);
     labeled(page_disk, "Установить на:", disk_combo);
+
+    disk_manual = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(disk_manual),
+        "необязательно: /dev/sda, /dev/nvme0n1 …");
+    g_signal_connect(disk_manual, "changed",
+        G_CALLBACK(on_disk_changed), NULL);
+    labeled(page_disk, "Или вручную:", disk_manual);
+
     disk_warning = gtk_label_new("");
     gtk_widget_set_halign(disk_warning, GTK_ALIGN_START);
+    gtk_label_set_line_wrap(GTK_LABEL(disk_warning), TRUE);
     gtk_box_pack_start(GTK_BOX(page_disk), disk_warning, FALSE, FALSE, 6);
+
     GtkWidget *note = gtk_label_new(
         "Если система запущена с флешки — не выбирайте её.\n"
-        "Разметка будет создана заново (GPT, автоматически UEFI или BIOS).");
+        "Разметка будет создана заново (GPT, автоматически UEFI или BIOS).\n"
+        "Список дисков можно посмотреть командой lsblk в терминале.");
     gtk_widget_set_halign(note, GTK_ALIGN_START);
     gtk_style_context_add_class(gtk_widget_get_style_context(note),
         "dim-label");
     gtk_box_pack_start(GTK_BOX(page_disk), note, FALSE, FALSE, 0);
     fill_disks();
+    update_disk_page();
 
     /* 3. Пользователь */
     page_user = make_page(GTK_ASSISTANT(assistant),
         GTK_ASSISTANT_PAGE_CONTENT, "Пользователь и система");
     host_entry = gtk_entry_new();
-    gtk_entry_set_text(GTK_ENTRY(host_entry), "shidikudik");
+    gtk_entry_set_text(GTK_ENTRY(host_entry), "shidikusik");
     labeled(page_user, "Имя компьютера:", host_entry);
 
     tz_combo = gtk_combo_box_text_new_with_entry();

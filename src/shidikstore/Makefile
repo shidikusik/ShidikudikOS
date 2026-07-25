@@ -16,7 +16,7 @@ install: shidik-store
 	install -Dm644 shidik-store.desktop \
 		$(DESTDIR)/usr/share/applications/shidik-store.desktop
 	install -Dm644 store-catalog.ini \
-		$(DESTDIR)/usr/share/shidikudik/store-catalog.ini
+		$(DESTDIR)/usr/share/shidikusik/store-catalog.ini
 
 clean:
 	rm -f shidik-store
