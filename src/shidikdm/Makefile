@@ -16,6 +16,8 @@ shidikdm: $(OBJS)
 install: shidikdm
 	install -Dm755 shidikdm $(DESTDIR)$(PREFIX)/bin/shidikdm
 	install -Dm644 shidikdm.pam $(DESTDIR)/etc/pam.d/shidikdm
+	install -Dm644 shidikdm-autologin.pam \
+		$(DESTDIR)/etc/pam.d/shidikdm-autologin
 
 clean:
 	rm -f shidikdm $(OBJS)

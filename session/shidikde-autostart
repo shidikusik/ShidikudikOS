@@ -4,6 +4,10 @@
 
 shidikpanel &
 
+# Агент polkit: без него pkexec (установщик, магазин приложений) не
+# сможет спросить пароль и просто откажет.
+command -v lxpolkit >/dev/null && lxpolkit &
+
 # Место для дальнейших компонентов:
 #   swaybg -i /usr/share/backgrounds/shidikudik.png &   # обои
 #   mako &                                              # уведомления

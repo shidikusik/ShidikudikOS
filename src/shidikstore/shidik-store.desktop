@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Магазин приложений
+Name[en]=App Store
+Comment=Установка и удаление программ (Shidik-Store)
+Comment[en]=Install and remove software
+Exec=shidik-store
+Type=Application
+Categories=System;PackageManager;

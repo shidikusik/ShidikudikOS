@@ -7,6 +7,7 @@
 #include <string.h>
 
 #define SDM_PAM_SERVICE "shidikdm" /* -> /etc/pam.d/shidikdm */
+#define SDM_PAM_AUTOLOGIN_SERVICE "shidikdm-autologin"
 
 /* PAM-конверсация: PAM задаёт вопросы (логин/пароль/инфо), мы отвечаем.
  * Пароль уже собран UI-слоем и передаётся через appdata_ptr, поэтому
@@ -39,15 +40,16 @@ static int sdm_conv(int num_msg, const struct pam_message **msg,
     return PAM_SUCCESS;
 }
 
-int sdm_authenticate(struct sdm_auth *a, const char *user,
-                     const char *password, const char *tty) {
+/* Общая часть обоих режимов: pam_start + item'ы окружения сессии. */
+static int sdm_begin(struct sdm_auth *a, const char *service,
+                     const char *user, const char *password,
+                     const char *tty) {
     struct pam_conv conv = { sdm_conv, (void *)password };
-    int r;
 
     memset(a, 0, sizeof(*a));
     snprintf(a->username, sizeof(a->username), "%s", user);
 
-    r = pam_start(SDM_PAM_SERVICE, user, &conv, &a->pamh);
+    int r = pam_start(service, user, &conv, &a->pamh);
     if (r != PAM_SUCCESS)
         return r;
 
@@ -57,11 +59,34 @@ int sdm_authenticate(struct sdm_auth *a, const char *user,
     pam_putenv(a->pamh, "XDG_SESSION_CLASS=user");
     pam_putenv(a->pamh, "XDG_SESSION_TYPE=wayland");
     pam_putenv(a->pamh, "XDG_SESSION_DESKTOP=shidikde");
+    return PAM_SUCCESS;
+}
+
+int sdm_authenticate(struct sdm_auth *a, const char *user,
+                     const char *password, const char *tty) {
+    int r = sdm_begin(a, SDM_PAM_SERVICE, user, password, tty);
+    if (r != PAM_SUCCESS)
+        return r;
 
     r = pam_authenticate(a->pamh, 0);          /* проверка пароля */
     if (r == PAM_SUCCESS)
         r = pam_acct_mgmt(a->pamh, 0);          /* аккаунт не заблокирован? */
 
+    if (r != PAM_SUCCESS) {
+        pam_end(a->pamh, r);
+        a->pamh = NULL;
+    }
+    return r;
+}
+
+int sdm_autologin(struct sdm_auth *a, const char *user, const char *tty) {
+    /* Пароль не спрашиваем: в сервисе shidikdm-autologin стадия auth —
+     * pam_permit. Аккаунт всё равно проверяем (не истёк, не заблокирован). */
+    int r = sdm_begin(a, SDM_PAM_AUTOLOGIN_SERVICE, user, "", tty);
+    if (r != PAM_SUCCESS)
+        return r;
+
+    r = pam_acct_mgmt(a->pamh, 0);
     if (r != PAM_SUCCESS) {
         pam_end(a->pamh, r);
         a->pamh = NULL;

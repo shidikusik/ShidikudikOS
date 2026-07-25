@@ -1,16 +1,15 @@
 #!/bin/bash
 # shidik-install — установщик ShidikudikOS на диск.
 #
-# Запускается из live-сессии под root (sudo shidik-install).
-# Консольный, в одном стиле с ShidikDM: вопросы по одному, ничего лишнего.
+# Два режима:
+#   интерактивный (по умолчанию): вопросы в консоли, в стиле ShidikDM;
+#   неинтерактивный (--unattended): все ответы в аргументах, пароль —
+#     первой строкой stdin. Используется графическим установщиком
+#     shidik-install-gui, который читает вывод и рисует прогресс.
 #
-# Что делает:
-#   1. выбор целевого диска (СТИРАЕТ ЕГО ЦЕЛИКОМ);
-#   2. разметка GPT: ESP (UEFI) или bios_grub (BIOS) + корень ext4;
-#   3. копирование работающей live-системы rsync'ом;
-#   4. hostname, часовой пояс, СВОЙ пользователь и СВОЙ пароль;
-#   5. fstab, GRUB (UEFI или BIOS), новый initramfs без live-boot;
-#   6. удаление live-обвязки и live-пользователя shidik.
+# Шаги: разметка диска (GPT, UEFI или BIOS) → копирование live-системы
+# rsync'ом → hostname/часовой пояс/пользователь с его паролем → fstab,
+# GRUB, initramfs → снятие live-обвязки (автовход, NOPASSWD, live-юзер).
 set -euo pipefail
 
 TARGET=/mnt/shidik-target
@@ -19,10 +18,19 @@ C_ACCENT='\033[38;5;215m'
 C_RED='\033[31m'
 C_RESET='\033[0m'
 
-die() { echo -e "${C_RED}ошибка:${C_RESET} $*" >&2; exit 1; }
+UNATTENDED=0
+DISK=""
+NEWHOST="shidikudik"
+NEWUSER=""
+NEWTZ="Europe/Moscow"
+PASSWORD=""
+
+die() { echo "ошибка: $*" >&2; exit 1; }
+
+# Прогресс для GUI: строки PROGRESS:<0..100> и обычный текст статуса.
+progress() { echo "PROGRESS:$1"; echo "== $2"; }
 
 cleanup() {
-    # снять всё, что успели примонтировать (в обратном порядке)
     for m in "$TARGET/dev/pts" "$TARGET/dev" "$TARGET/proc" "$TARGET/sys" \
              "$TARGET/boot/efi" "$TARGET"; do
         mountpoint -q "$m" 2>/dev/null && umount -R "$m" 2>/dev/null || true
@@ -30,12 +38,43 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# ---------- разбор аргументов ----------
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --unattended)     UNATTENDED=1 ;;
+        --disk)           DISK="$2"; shift ;;
+        --hostname)       NEWHOST="$2"; shift ;;
+        --user)           NEWUSER="$2"; shift ;;
+        --timezone)       NEWTZ="$2"; shift ;;
+        --password-stdin) PASSWORD="stdin" ;;
+        -h|--help)
+            cat <<EOF
+Использование:
+  shidik-install                       интерактивная установка
+  shidik-install --unattended --disk /dev/sda --user ivan \\
+      [--hostname shidikudik] [--timezone Europe/Moscow] --password-stdin
+Пароль в неинтерактивном режиме читается первой строкой stdin.
+EOF
+            exit 0 ;;
+        *) die "неизвестный аргумент: $1" ;;
+    esac
+    shift
+done
+
 [ "$(id -u)" = 0 ] || die "нужен root: sudo shidik-install"
 [ -d /run/live ] || die "запускать нужно из live-сессии ShidikudikOS"
 
-clear
-echo -e "${C_ACCENT}"
-cat <<'BANNER'
+# ---------- сбор параметров ----------
+if [ "$UNATTENDED" = 1 ]; then
+    [ -n "$DISK" ]    || die "--disk обязателен"
+    [ -n "$NEWUSER" ] || die "--user обязателен"
+    [ -b "$DISK" ]    || die "$DISK — не блочное устройство"
+    IFS= read -r PASSWORD || PASSWORD=""
+    [ -n "$PASSWORD" ] || die "пустой пароль"
+else
+    clear
+    echo -e "${C_ACCENT}"
+    cat <<'BANNER'
       \ /       \ /
       (\)  ___  (/)
        \\ /o o\ //
@@ -43,44 +82,57 @@ cat <<'BANNER'
          \ \_/ /         на жёсткий диск
           '---'
 BANNER
-echo -e "${C_RESET}"
+    echo -e "${C_RESET}"
 
-# ---------- 1. выбор диска ----------
-echo "Доступные диски:"
-lsblk -dno NAME,SIZE,MODEL,TYPE | awk '$NF=="disk" {printf "  /dev/%-10s %8s  %s\n", $1, $2, substr($0, index($0,$3))}'
-echo
-echo "ВНИМАНИЕ: если ShidikudikOS запущена с флешки — не выбирайте её."
-read -rp "Целевой диск (например /dev/sda): " DISK
-[ -b "$DISK" ] || die "$DISK — не блочное устройство"
+    echo "Доступные диски:"
+    lsblk -dno NAME,SIZE,MODEL,TYPE | awk '$NF=="disk" {printf "  /dev/%-10s %8s  %s\n", $1, $2, substr($0, index($0,$3))}'
+    echo
+    echo "ВНИМАНИЕ: если ShidikudikOS запущена с флешки — не выбирайте её."
+    read -rp "Целевой диск (например /dev/sda): " DISK
+    [ -b "$DISK" ] || die "$DISK — не блочное устройство"
 
-echo
-echo -e "${C_RED}ВСЕ ДАННЫЕ НА $DISK БУДУТ УНИЧТОЖЕНЫ.${C_RESET}"
-read -rp "Введите YES заглавными, чтобы продолжить: " CONFIRM
-[ "$CONFIRM" = "YES" ] || die "установка отменена"
+    echo
+    echo -e "${C_RED}ВСЕ ДАННЫЕ НА $DISK БУДУТ УНИЧТОЖЕНЫ.${C_RESET}"
+    read -rp "Введите YES заглавными, чтобы продолжить: " CONFIRM
+    [ "$CONFIRM" = "YES" ] || die "установка отменена"
+
+    read -rp "Имя компьютера [shidikudik]: " ANS
+    NEWHOST="${ANS:-shidikudik}"
+    read -rp "Часовой пояс [Europe/Moscow]: " ANS
+    NEWTZ="${ANS:-Europe/Moscow}"
+    while :; do
+        read -rp "Имя нового пользователя: " NEWUSER
+        [[ "$NEWUSER" =~ ^[a-z][a-z0-9_-]{0,31}$ ]] && break
+        echo "  латиница строчными, цифры, -, _; начинается с буквы"
+    done
+fi
+
+[ -f "/usr/share/zoneinfo/$NEWTZ" ] || die "нет такого часового пояса: $NEWTZ"
 
 # суффикс раздела: /dev/sda1, но /dev/nvme0n1p1
 PART=""
 case "$DISK" in *[0-9]) PART="p" ;; esac
 
-# ---------- 2. разметка и ФС ----------
+# ---------- разметка ----------
+progress 5 "Размечаю $DISK"
 if [ -d /sys/firmware/efi ]; then
     MODE=uefi
-    echo "== Режим UEFI: GPT, ESP 512 МиБ + корень ext4"
     parted -s "$DISK" mklabel gpt \
         mkpart ESP fat32 1MiB 513MiB set 1 esp on \
         mkpart shidikroot ext4 513MiB 100%
     ESP="${DISK}${PART}1"
     ROOT="${DISK}${PART}2"
-    mkfs.vfat -F32 -n EFI "$ESP"
+    mkfs.vfat -F32 -n EFI "$ESP" >/dev/null
 else
     MODE=bios
-    echo "== Режим BIOS: GPT, bios_grub + корень ext4"
     parted -s "$DISK" mklabel gpt \
         mkpart biosgrub 1MiB 2MiB set 1 bios_grub on \
         mkpart shidikroot ext4 2MiB 100%
     ROOT="${DISK}${PART}2"
 fi
 udevadm settle
+
+progress 10 "Создаю файловую систему (режим $MODE)"
 mkfs.ext4 -q -F -L shidikroot "$ROOT"
 
 mkdir -p "$TARGET"
@@ -90,20 +142,20 @@ if [ "$MODE" = uefi ]; then
     mount "$ESP" "$TARGET/boot/efi"
 fi
 
-# ---------- 3. копирование системы ----------
-echo "== Копирую систему (несколько минут)..."
-rsync -aHAX --info=progress2 \
-    --exclude=/dev/'*' --exclude=/proc/'*' --exclude=/sys/'*' \
-    --exclude=/tmp/'*' --exclude=/run/'*' --exclude=/mnt/'*' \
-    --exclude=/media/'*' --exclude=/lost+found --exclude=/boot/efi/'*' \
-    / "$TARGET/"
+# ---------- копирование системы ----------
+progress 15 "Копирую систему (это самый долгий шаг)"
+RSYNC_OPTS=(-aHAX
+    --exclude=/dev/'*' --exclude=/proc/'*' --exclude=/sys/'*'
+    --exclude=/tmp/'*' --exclude=/run/'*' --exclude=/mnt/'*'
+    --exclude=/media/'*' --exclude=/lost+found --exclude=/boot/efi/'*')
+# в GUI построчный прогресс rsync только зашумил бы лог
+[ "$UNATTENDED" = 1 ] || RSYNC_OPTS+=(--info=progress2)
+rsync "${RSYNC_OPTS[@]}" / "$TARGET/"
 mkdir -p "$TARGET"/{dev,proc,sys,tmp,run,mnt,media}
 chmod 1777 "$TARGET/tmp"
 
-# ---------- 4. вопросы пользователю ----------
-echo
-read -rp "Имя компьютера [shidikudik]: " NEWHOST
-NEWHOST=${NEWHOST:-shidikudik}
+# ---------- система и пользователь ----------
+progress 70 "Настраиваю систему"
 echo "$NEWHOST" > "$TARGET/etc/hostname"
 cat > "$TARGET/etc/hosts" <<EOF
 127.0.0.1   localhost
@@ -111,41 +163,42 @@ cat > "$TARGET/etc/hosts" <<EOF
 ::1         localhost ip6-localhost ip6-loopback
 EOF
 
-read -rp "Часовой пояс [Europe/Moscow]: " TZ
-TZ=${TZ:-Europe/Moscow}
-[ -f "$TARGET/usr/share/zoneinfo/$TZ" ] || die "нет такого пояса: $TZ"
-ln -sf "/usr/share/zoneinfo/$TZ" "$TARGET/etc/localtime"
-echo "$TZ" > "$TARGET/etc/timezone"
+ln -sf "/usr/share/zoneinfo/$NEWTZ" "$TARGET/etc/localtime"
+echo "$NEWTZ" > "$TARGET/etc/timezone"
 
-while :; do
-    read -rp "Имя нового пользователя: " NEWUSER
-    [[ "$NEWUSER" =~ ^[a-z][a-z0-9_-]{0,31}$ ]] && break
-    echo "  латиница строчными, цифры, -, _; начинается с буквы"
-done
-
-# ---------- 5. настройка в chroot ----------
 mount --bind /dev  "$TARGET/dev"
 mount --bind /dev/pts "$TARGET/dev/pts"
 mount -t proc  proc "$TARGET/proc"
 mount --rbind /sys  "$TARGET/sys"   # rbind — чтобы UEFI видел efivars
 
+progress 75 "Создаю пользователя $NEWUSER"
 chroot "$TARGET" useradd -m -s /bin/bash -G sudo,audio,video "$NEWUSER" \
     2>/dev/null || true
 chroot "$TARGET" usermod -aG sudo,audio,video "$NEWUSER"
 
-echo
-echo "== Пароль для $NEWUSER (вводится дважды, не отображается):"
-until chroot "$TARGET" passwd "$NEWUSER"; do
-    echo "  попробуйте ещё раз"
-done
+if [ "$UNATTENDED" = 1 ]; then
+    printf '%s:%s\n' "$NEWUSER" "$PASSWORD" | chroot "$TARGET" chpasswd
+else
+    echo
+    echo "== Пароль для $NEWUSER (вводится дважды, не отображается):"
+    until chroot "$TARGET" passwd "$NEWUSER"; do
+        echo "  попробуйте ещё раз"
+    done
+fi
 chroot "$TARGET" passwd -l root >/dev/null   # root заперт, работаем через sudo
 
-# live-пользователь больше не нужен
+# ---------- снятие live-обвязки ----------
+progress 80 "Убираю live-настройки"
+# Автовход и беспарольный sudo — только для live-сессии; на диске
+# система должна спрашивать пароль как обычно.
+rm -f "$TARGET/etc/shidikudik/autologin"
+rm -f "$TARGET/etc/sudoers.d/shidikudik-live"
+rm -f "$TARGET/etc/polkit-1/rules.d/49-shidikudik-live.rules"
+rm -f "$TARGET/usr/share/applications/shidikudik-installer.desktop"
 if [ "$NEWUSER" != "shidik" ]; then
     chroot "$TARGET" userdel -r shidik 2>/dev/null || true
 fi
 
-# fstab по UUID
 ROOT_UUID=$(blkid -s UUID -o value "$ROOT")
 {
     echo "UUID=$ROOT_UUID / ext4 defaults 0 1"
@@ -158,22 +211,27 @@ ROOT_UUID=$(blkid -s UUID -o value "$ROOT")
 truncate -s0 "$TARGET/etc/machine-id"
 rm -f "$TARGET/var/lib/dbus/machine-id"
 
-echo "== Убираю live-обвязку, ставлю GRUB..."
 chroot "$TARGET" env DEBIAN_FRONTEND=noninteractive \
     apt-get purge -y -qq live-boot live-config live-boot-initramfs-tools \
-    live-config-systemd live-tools 2>/dev/null || true
+    live-config-systemd live-tools >/dev/null 2>&1 || true
 
+# ---------- загрузчик ----------
+progress 90 "Устанавливаю загрузчик GRUB ($MODE)"
 if [ "$MODE" = uefi ]; then
     chroot "$TARGET" grub-install --target=x86_64-efi \
-        --efi-directory=/boot/efi --bootloader-id=ShidikudikOS --recheck
+        --efi-directory=/boot/efi --bootloader-id=ShidikudikOS --recheck \
+        >/dev/null 2>&1
 else
-    chroot "$TARGET" grub-install --target=i386-pc --recheck "$DISK"
+    chroot "$TARGET" grub-install --target=i386-pc --recheck "$DISK" \
+        >/dev/null 2>&1
 fi
-chroot "$TARGET" update-initramfs -u
-chroot "$TARGET" update-grub
+chroot "$TARGET" update-initramfs -u >/dev/null 2>&1
+chroot "$TARGET" update-grub >/dev/null 2>&1
 
-echo
-echo -e "${C_ACCENT}Установка завершена.${C_RESET}"
+progress 100 "Установка завершена"
 echo "Пользователь: $NEWUSER · компьютер: $NEWHOST · диск: $DISK ($MODE)"
-read -rp "Перезагрузиться сейчас? [y/N]: " R
-[ "${R,,}" = "y" ] && { cleanup; trap - EXIT; reboot; }
+
+if [ "$UNATTENDED" = 0 ]; then
+    read -rp "Перезагрузиться сейчас? [y/N]: " R
+    [ "${R,,}" = "y" ] && { cleanup; trap - EXIT; reboot; }
+fi

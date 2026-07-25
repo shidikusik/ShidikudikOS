@@ -80,7 +80,12 @@ static void on_power_action(GtkButton *b, gpointer data) {
 
 static GtkWidget *make_power_menu(void) {
     GtkWidget *button = gtk_menu_button_new();
-    gtk_button_set_label(GTK_BUTTON(button), "⏻");
+    /* Иконка из темы, а не символ ⏻ (U+23FB): его нет в DejaVu, и
+     * вместо кнопки рисуется пустой квадрат. */
+    gtk_button_set_image(GTK_BUTTON(button),
+        gtk_image_new_from_icon_name("system-shutdown-symbolic",
+            GTK_ICON_SIZE_BUTTON));
+    gtk_widget_set_tooltip_text(button, "Завершение работы");
 
     GtkWidget *popover = gtk_popover_new(button);
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
@@ -137,7 +142,11 @@ int main(int argc, char *argv[]) {
     gtk_container_set_border_width(GTK_CONTAINER(bar), 4);
     gtk_container_add(GTK_CONTAINER(window), bar);
 
-    GtkWidget *menu_btn = gtk_button_new_with_label("☰");
+    GtkWidget *menu_btn = gtk_button_new();
+    gtk_button_set_image(GTK_BUTTON(menu_btn),
+        gtk_image_new_from_icon_name("open-menu-symbolic",
+            GTK_ICON_SIZE_BUTTON));
+    gtk_widget_set_tooltip_text(menu_btn, "Приложения (Win+D)");
     g_signal_connect(menu_btn, "clicked", G_CALLBACK(on_menu_clicked), NULL);
     gtk_box_pack_start(GTK_BOX(bar), menu_btn, FALSE, FALSE, 0);
 

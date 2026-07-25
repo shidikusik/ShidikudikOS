@@ -9,7 +9,7 @@
 Environment (**ShidikDE**).
 
 📀 **[Скачать готовый ISO →](https://github.com/shidikusik/ShidikudikOS/releases)**
-(логин live-сессии: `shidik` / `live`)
+— live-сессия **входит без пароля**, установка на диск в один клик.
 
 Талисман — **дик-дик**: миниатюрная антилопа. Маленькая, быстрая,
 незаметная и выносливая — как и сам дистрибутив. Логотип: `assets/logo.svg`.
@@ -27,13 +27,33 @@ Environment (**ShidikDE**).
 
 ## Скриншоты
 
-Сняты в QEMU при первой успешной сборке — система от экрана входа до
-меню приложений:
+### Вход и рабочий стол
 
-| Экран входа (ShidikDM) | Рабочий стол (ShidikDE) | Меню приложений |
+| Экран входа (shidikgreet) | Рабочий стол (ShidikDE) | Меню приложений (Win+D) |
 |---|---|---|
-| ![Экран входа ShidikDM](assets/screenshots/shidikdm-login.png) | ![Рабочий стол ShidikDE с панелью](assets/screenshots/shidikde-desktop.png) | ![Меню приложений shidiklaunch](assets/screenshots/shidiklaunch-menu.png) |
-| ASCII-дик-дик и консольный greeter на tty1 | панель: меню, часы, load average, кнопка питания | Win+D: поиск по .desktop-файлам |
+| ![Графический экран входа ShidikDM](assets/screenshots/shidikdm-greeter.png) | ![Рабочий стол ShidikDE с панелью](assets/screenshots/shidikde-desktop.png) | ![Меню приложений shidiklaunch](assets/screenshots/shidiklaunch-menu.png) |
+| размытые обои, часы, карточка логина | панель: меню, часы, нагрузка, питание | поиск по `.desktop`-файлам |
+
+### Собственные приложения
+
+| Shidik-Term | Shidik-Files |
+|---|---|
+| ![Терминал Shidik-Term](assets/screenshots/shidik-term.png) | ![Файловый менеджер Shidik-Files](assets/screenshots/shidik-files.png) |
+| терминал в фирменной палитре (Win+Enter) | места, размеры, типы файлов, корзина |
+
+| Shidik-Store | Shidik-Control |
+|---|---|
+| ![Магазин приложений Shidik-Store](assets/screenshots/shidik-store.png) | ![Центр настроек Shidik-Control](assets/screenshots/shidik-control.png) |
+| каталог с категориями, установка в один клик | система, тема, сеть, экраны, пользователь |
+
+### Установка на диск
+
+![Графический установщик](assets/screenshots/shidik-install.png)
+
+Мастер из пяти шагов: диск → пользователь и пароль → подтверждение →
+установка с прогрессом. Есть и консольный вариант — `sudo shidik-install`
+([скриншот текстового входа](assets/screenshots/shidikdm-login.png) —
+запасной greeter ShidikDM на случай проблем с графикой).
 
 ---
 
@@ -89,8 +109,12 @@ ShidikudikOS/
 │   ├── shidiksession/         ← shidik-session-ctl (C + sd-bus/logind)
 │   ├── shidikgreet/           ← графический greeter DM (glassmorphism)
 │   ├── shidikterm/            ← Shidik-Term: терминал (GTK3 + VTE)
-│   └── shidikcontrol/         ← Shidik-Control: центр настроек
-├── installer/                 ← shidik-install: установка на диск
+│   ├── shidikcontrol/         ← Shidik-Control: центр настроек
+│   ├── shidikfiles/           ← Shidik-Files: файловый менеджер
+│   └── shidikstore/           ← Shidik-Store: магазин приложений (apt)
+├── installer/                 ← установка на диск
+│   ├── shidik-install         ← движок: разметка, копирование, GRUB
+│   └── gui/                   ← мастер на GtkAssistant поверх него
 ├── session/
 │   ├── shidikde-session       ← точка входа в сессию (env + dbus + wm)
 │   ├── shidikde-autostart     ← поднимает панель и пр. внутри Wayland
@@ -204,12 +228,27 @@ Enter запускает первый найденный, Esc закрывает
 logind убивает все процессы сессии, композитор гаснет, ShidikDM
 показывает экран входа.
 
+### 4.5 Shidik-Files и Shidik-Store
+
+**Shidik-Files** (`src/shidikfiles/`) — файловый менеджер на GTK3 + GIO:
+навигация с историей, боковая панель мест, системные иконки типов файлов,
+открытие через `GAppInfo`, создание папки, переименование, удаление в
+корзину (`g_file_trash`), показ скрытых файлов.
+
+**Shidik-Store** (`src/shidikstore/`) — магазин приложений, витрина над
+`apt`. Каталог описан обычным ini-файлом
+`/usr/share/shidikudik/store-catalog.ini` (29 приложений: браузеры, офис,
+графика, мультимедиа, разработка, игры, системные утилиты) — его можно
+дополнять руками. Статус пакета берётся у `dpkg-query`, установка и
+удаление — `pkexec apt-get -y install|remove` с живым логом; кнопка
+«Искать во всём репозитории» открывает `apt-cache search` в терминале.
+
 ### Сборка всего DE
 
 ```sh
 sudo apt install gcc make pkg-config libpam0g-dev libwlroots-0.18-dev \
     libwayland-dev libxkbcommon-dev wayland-protocols libgtk-3-dev \
-    libgtk-layer-shell-dev libsystemd-dev
+    libgtk-layer-shell-dev libsystemd-dev libvte-2.91-dev
 make            # собрать всё
 sudo make install
 sudo systemctl enable shidikdm   # автозапуск DM
@@ -220,7 +259,53 @@ sudo systemctl enable shidikdm   # автозапуск DM
 
 ---
 
-## 5. Сборка ISO
+## 5. Live-режим и установка
+
+### Live-сессия: без пароля
+
+ISO загружается **сразу в рабочий стол, пароль не спрашивается**. Как это
+устроено:
+
+- chroot-хук пишет `/etc/shidikudik/autologin` с именем `shidik`;
+- ShidikDM при старте видит этот файл и логинит пользователя через
+  PAM-сервис `shidikdm-autologin`, где стадия `auth` заменена на
+  `pam_permit` (сессия при этом полноценная: `pam_systemd`, logind,
+  `XDG_RUNTIME_DIR`);
+- автовход срабатывает **один раз** — после «Выйти» появляется обычный
+  экран входа (иначе выйти было бы невозможно);
+- в live-режиме также включены `sudo` без пароля и правило polkit, чтобы
+  установщик и магазин приложений не спрашивали пароль, которого нет.
+
+Все три файла **удаляются установщиком** — на диске система спрашивает
+пароль как обычно.
+
+### Установщик
+
+Графический мастер `shidik-install-gui` (пункт «Установить ShidikudikOS»
+в меню приложений) поверх движка `installer/shidik-install`:
+
+1. выбор целевого диска (диск стирается целиком, с подтверждением);
+2. разметка GPT под UEFI (ESP + ext4) или BIOS (bios_grub + ext4) —
+   режим определяется автоматически;
+3. копирование работающей live-системы `rsync`'ом;
+4. **пользователь сам задаёт** имя компьютера, часовой пояс, логин и
+   пароль (root блокируется, работа через sudo);
+5. fstab по UUID, GRUB под нужный режим, свежий initramfs;
+6. удаление live-обвязки: автовход, беспарольные sudo/polkit,
+   live-boot/live-config и сам пользователь `shidik`.
+
+Движок работает и сам по себе — `sudo shidik-install` даёт те же вопросы
+в консоли, а `--unattended` позволяет скриптовать установку:
+
+```sh
+echo 'мой-пароль' | sudo shidik-install --unattended \
+    --disk /dev/sda --user ivan --hostname mypc --timezone Europe/Moscow \
+    --password-stdin
+```
+
+---
+
+## 6. Сборка ISO
 
 Полная инструкция — [`docs/iso-build.md`](docs/iso-build.md). Кратко:
 
@@ -235,31 +320,21 @@ sudo ./build.sh          # → live-image-amd64.hybrid.iso
 будущей системы и включает `shidikdm.service`, после чего всё пакуется в
 загрузочный hybrid-ISO (BIOS+UEFI, можно писать на флешку через `dd`).
 
+Готовые образы собираются автоматически: workflow
+`.github/workflows/release-iso.yml` строит ISO в контейнере
+`debian:trixie` и прикладывает его к GitHub Release вместе с sha256.
+
 Проверка в QEMU:
 
 ```sh
 qemu-system-x86_64 -enable-kvm -m 4G -cdrom iso/live-image-amd64.hybrid.iso
 ```
 
----
-
-## 6. Инсталлер
-
-`installer/shidik-install` — собственный консольный установщик в стиле
-ShidikDM (запускается из live-сессии: пункт «Установить ShidikudikOS» в
-меню приложений или `sudo shidik-install` в терминале):
-
-1. выбор целевого диска с явным подтверждением (диск стирается целиком);
-2. разметка GPT под UEFI (ESP + ext4) или BIOS (bios_grub + ext4) —
-   режим определяется автоматически;
-3. копирование работающей live-системы `rsync`'ом;
-4. **пользователь сам задаёт** имя компьютера, часовой пояс, логин и
-   пароль (root блокируется, работа через sudo);
-5. fstab по UUID, GRUB под нужный режим, свежий initramfs;
-6. удаление live-обвязки (live-boot/live-config) и live-пользователя.
-
 ## 7. Дорожная карта
 
+- [x] автовход в live-режиме без пароля
+- [x] графический установщик (мастер на GtkAssistant)
+- [x] магазин приложений Shidik-Store (витрина над apt)
 - [x] инсталлер на диск (shidik-install)
 - [x] графический greeter ShidikDM (shidikgreet: glassmorphism, свой
       композитор через seatd-launch, авторизация у root по сокету)

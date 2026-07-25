@@ -24,6 +24,21 @@ static void on_child_exited(VteTerminal *term, gint status, gpointer data) {
     gtk_main_quit();
 }
 
+/* Ошибку запуска оболочки нужно показать, иначе окно выглядит просто
+ * пустым и непонятно, что произошло. */
+static void on_spawned(VteTerminal *term, GPid pid, GError *error,
+        gpointer data) {
+    (void)data;
+    if (error == NULL)
+        return;
+    (void)pid;
+    gchar *msg = g_strdup_printf(
+        "\r\n  Не удалось запустить оболочку: %s\r\n", error->message);
+    vte_terminal_feed(term, msg, -1);
+    g_printerr("shidik-term: %s\n", error->message);
+    g_free(msg);
+}
+
 static gboolean on_key(GtkWidget *w, GdkEventKey *ev, gpointer term) {
     (void)w;
     guint mods = ev->state & gtk_accelerator_get_default_mod_mask();
@@ -83,15 +98,18 @@ int main(int argc, char *argv[]) {
         G_CALLBACK(on_child_exited), NULL);
     g_signal_connect(window, "key-press-event", G_CALLBACK(on_key), term);
 
-    vte_terminal_spawn_async(VTE_TERMINAL(term), VTE_PTY_DEFAULT,
-        NULL,            /* рабочий каталог — унаследовать */
-        cmdv, NULL,      /* argv, envv */
-        G_SPAWN_SEARCH_PATH,
-        NULL, NULL, NULL, /* child setup */
-        -1, NULL, NULL, NULL);
-
     gtk_container_add(GTK_CONTAINER(window), term);
     gtk_widget_show_all(window);
+
+    /* Запуск только после show_all: VTE ставит размер PTY по размеру
+     * уже размеченного виджета. */
+    vte_terminal_spawn_async(VTE_TERMINAL(term), VTE_PTY_DEFAULT,
+        g_get_home_dir(),
+        cmdv, NULL,      /* argv, envv (унаследовать) */
+        G_SPAWN_SEARCH_PATH,
+        NULL, NULL, NULL, /* child setup */
+        -1, NULL, on_spawned, NULL);
+
     gtk_main();
 
     g_strfreev(cmdv);

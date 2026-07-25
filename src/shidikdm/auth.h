@@ -19,6 +19,11 @@ struct sdm_auth {
 int sdm_authenticate(struct sdm_auth *a, const char *user,
                      const char *password, const char *tty);
 
+/* Автовход без пароля (live-режим). Использует PAM-сервис
+ * shidikdm-autologin, где auth заменён на pam_permit; проверка аккаунта
+ * (pam_acct_mgmt) выполняется как обычно. 0 при успехе. */
+int sdm_autologin(struct sdm_auth *a, const char *user, const char *tty);
+
 /* Открывает PAM-сессию (pam_setcred + pam_open_session). 0 при успехе. */
 int sdm_open_session(struct sdm_auth *a);
 

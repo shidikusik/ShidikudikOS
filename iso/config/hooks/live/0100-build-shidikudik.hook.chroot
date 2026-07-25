@@ -9,10 +9,14 @@ echo "== ShidikudikOS: сборка ShidikDM/ShidikDE =="
 SRC=/opt/shidikudik/src
 
 for component in shidikdm shidikwm shidikpanel shidiklaunch shidiksession \
-                 shidikgreet shidikterm shidikcontrol shidikfiles; do
+                 shidikgreet shidikterm shidikcontrol shidikfiles \
+                 shidikstore; do
     echo "-- сборка $component"
     make -C "$SRC/$component" clean all install
 done
+
+echo "-- сборка графического установщика"
+make -C /opt/shidikudik/installer/gui clean all install
 
 # Брендинг: логотип и обои (нужны greeter'у и Shidik-Control)
 install -Dm644 /opt/shidikudik/assets/logo.svg \
@@ -21,12 +25,6 @@ install -Dm644 /opt/shidikudik/assets/wallpaper.png \
     /usr/share/shidikudik/wallpaper.png
 install -Dm644 /opt/shidikudik/assets/wallpaper-blur.png \
     /usr/share/shidikudik/wallpaper-blur.png
-
-# Инсталлер: бинарь + пункт в меню приложений
-install -Dm755 /opt/shidikudik/installer/shidik-install \
-    /usr/local/bin/shidik-install
-install -Dm644 /opt/shidikudik/installer/shidikudik-installer.desktop \
-    /usr/share/applications/shidikudik-installer.desktop
 
 # Live-пользователь создаётся статически: полагаться на live-config
 # нельзя — проверено на реальной сборке, что с нестандартным DM его
@@ -38,6 +36,32 @@ if ! id shidik >/dev/null 2>&1; then
     getent group netdev >/dev/null && usermod -aG netdev shidik
 fi
 echo 'shidik:live' | chpasswd
+
+# --- Настройки, действующие ТОЛЬКО в live-режиме ---
+# Все три файла удаляются установщиком (installer/shidik-install), чтобы
+# на установленной системе вход и админские действия были под паролем.
+
+# 1. Автовход без пароля: ShidikDM читает этот файл при старте
+install -d /etc/shidikudik
+echo 'shidik' > /etc/shidikudik/autologin
+
+# 2. sudo без пароля — в live-сессии пароль всё равно общеизвестен
+printf 'shidik ALL=(ALL) NOPASSWD: ALL\n' \
+    > /etc/sudoers.d/shidikudik-live
+chmod 440 /etc/sudoers.d/shidikudik-live
+
+# 3. polkit без запроса пароля: иначе установщик и магазин приложений
+#    просили бы пароль, которого у live-пользователя нет
+install -d /etc/polkit-1/rules.d
+cat > /etc/polkit-1/rules.d/49-shidikudik-live.rules <<'EOF'
+// Live-сессия ShidikudikOS: административные действия без пароля.
+// Файл удаляется при установке на диск.
+polkit.addRule(function(action, subject) {
+    if (subject.user == "shidik") {
+        return polkit.Result.YES;
+    }
+});
+EOF
 
 # systemd: наш DM становится display-manager'ом системы
 install -Dm644 /opt/shidikudik/systemd/shidikdm.service \

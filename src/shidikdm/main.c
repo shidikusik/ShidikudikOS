@@ -33,6 +33,7 @@
 
 #define DEFAULT_SESSION "/usr/local/bin/shidikde-session"
 #define GREETER_BIN "/usr/local/bin/shidikgreet"
+#define AUTOLOGIN_CONF "/etc/shidikudik/autologin"
 #define MAX_ATTEMPTS 3
 
 static const char *BANNER =
@@ -187,6 +188,27 @@ static int graphical_greeter(struct sdm_auth *auth, const char *tty) {
     return result;
 }
 
+/* ---------- автовход ---------- */
+
+/* Читает имя пользователя из /etc/shidikudik/autologin (одна строка).
+ * Возвращает malloc'нутую строку или NULL, если автовход не настроен. */
+static char *autologin_user(void) {
+    FILE *f = fopen(AUTOLOGIN_CONF, "r");
+    if (!f)
+        return NULL;
+
+    char buf[128] = {0};
+    char *line = fgets(buf, sizeof(buf), f);
+    fclose(f);
+    if (!line)
+        return NULL;
+
+    buf[strcspn(buf, "\r\n")] = '\0';
+    if (buf[0] == '\0' || buf[0] == '#')
+        return NULL;
+    return strdup(buf);
+}
+
 /* ---------- main ---------- */
 
 int main(int argc, char *argv[]) {
@@ -200,11 +222,26 @@ int main(int argc, char *argv[]) {
     int use_graphical = !getenv("SHIDIKDM_CONSOLE") &&
         access(GREETER_BIN, X_OK) == 0;
 
+    /* Автовход срабатывает один раз — при старте системы. После выхода
+     * из сессии показываем обычный greeter, иначе выйти было бы нельзя. */
+    char *auto_user = autologin_user();
+
     for (;;) {
         struct sdm_auth auth;
         int authed = -1;
 
-        if (use_graphical)
+        if (auto_user) {
+            printf("%s  вход без пароля: %s\n", BANNER, auto_user);
+            authed = sdm_autologin(&auth, auto_user, tty);
+            if (authed != 0)
+                fprintf(stderr,
+                    "shidikdm: автовход для %s не удался, спрашиваю пароль\n",
+                    auto_user);
+            free(auto_user);
+            auto_user = NULL;
+        }
+
+        if (authed != 0 && use_graphical)
             authed = graphical_greeter(&auth, tty);
         if (authed != 0)
             authed = console_greeter(&auth, tty);

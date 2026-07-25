@@ -320,13 +320,15 @@ int main(int argc, char *argv[]) {
         G_CALLBACK(on_path_activate), NULL);
     gtk_box_pack_start(GTK_BOX(bar), path_entry, TRUE, TRUE, 4);
 
-    GtkWidget *newdir = gtk_button_new_with_label("+ папка");
+    /* Подписи словами: эмодзи вроде 🗑 в DejaVu отсутствуют и рисуются
+     * пустым квадратом. */
+    GtkWidget *newdir = gtk_button_new_with_label("Новая папка");
     g_signal_connect(newdir, "clicked", G_CALLBACK(on_new_folder), NULL);
-    GtkWidget *rename = gtk_button_new_with_label("переим.");
+    GtkWidget *rename = gtk_button_new_with_label("Переименовать");
     g_signal_connect(rename, "clicked", G_CALLBACK(on_rename), NULL);
-    GtkWidget *del = gtk_button_new_with_label("🗑");
+    GtkWidget *del = gtk_button_new_with_label("Удалить");
     g_signal_connect(del, "clicked", G_CALLBACK(on_delete), NULL);
-    GtkWidget *hidden = gtk_toggle_button_new_with_label("•");
+    GtkWidget *hidden = gtk_toggle_button_new_with_label("Скрытые");
     gtk_widget_set_tooltip_text(hidden, "Показывать скрытые файлы");
     g_signal_connect(hidden, "toggled",
         G_CALLBACK(on_hidden_toggled), NULL);

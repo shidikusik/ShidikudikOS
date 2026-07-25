@@ -8,6 +8,11 @@ sudo
 locales
 console-setup
 network-manager
+# polkit: pkexec нужен установщику и магазину, lxpolkit — агент, который
+# рисует запрос пароля внутри сессии (в trixie polkit разбит на пакеты)
+polkitd
+pkexec
+lxpolkit
 pipewire
 pipewire-pulse
 wireplumber
@@ -34,6 +39,9 @@ libpam0g
 libsystemd0
 adwaita-icon-theme
 fonts-dejavu
+# без загрузчика SVG для gdk-pixbuf логотип .svg не отрисуется
+# в Shidik-Control и в установщике
+librsvg2-common
 xdg-desktop-portal
 xdg-desktop-portal-wlr
 

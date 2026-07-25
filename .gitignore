@@ -9,6 +9,8 @@ src/shidikgreet/shidikgreet
 src/shidikterm/shidik-term
 src/shidikcontrol/shidik-control
 src/shidikfiles/shidik-files
+src/shidikstore/shidik-store
+installer/gui/shidik-install-gui
 
 # рабочие каталоги live-build (создаются lb config / lb build)
 iso/.build/

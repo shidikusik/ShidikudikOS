@@ -9,7 +9,8 @@ with its own Display Manager (**ShidikDM**) and Desktop Environment
 (**ShidikDE**), both written from scratch.
 
 📀 **[Download a ready-made ISO →](https://github.com/shidikusik/ShidikudikOS/releases)**
-(live session login: `shidik` / `live`)
+— the live session **logs in without a password**; installing to disk
+takes one click.
 
 The mascot is the **dik-dik**: a miniature antelope. Small, fast,
 unassuming and resilient — just like the distro itself. Logo:
@@ -28,13 +29,33 @@ unassuming and resilient — just like the distro itself. Logo:
 
 ## Screenshots
 
-Captured in QEMU during the first successful build — from the login
-screen to the application menu:
+### Login and desktop
 
-| Login screen (ShidikDM) | Desktop (ShidikDE) | Application menu |
+| Login screen (shidikgreet) | Desktop (ShidikDE) | App menu (Win+D) |
 |---|---|---|
-| ![ShidikDM login screen](assets/screenshots/shidikdm-login.png) | ![ShidikDE desktop with panel](assets/screenshots/shidikde-desktop.png) | ![shidiklaunch application menu](assets/screenshots/shidiklaunch-menu.png) |
-| ASCII dik-dik and console greeter on tty1 | panel: menu, clock, load average, power button | Win+D: search across .desktop files |
+| ![Graphical ShidikDM login screen](assets/screenshots/shidikdm-greeter.png) | ![ShidikDE desktop with panel](assets/screenshots/shidikde-desktop.png) | ![shidiklaunch application menu](assets/screenshots/shidiklaunch-menu.png) |
+| blurred wallpaper, clock, login card | panel: menu, clock, load, power | search across `.desktop` files |
+
+### Our own applications
+
+| Shidik-Term | Shidik-Files |
+|---|---|
+| ![Shidik-Term terminal](assets/screenshots/shidik-term.png) | ![Shidik-Files file manager](assets/screenshots/shidik-files.png) |
+| terminal in the branded palette (Win+Enter) | places, sizes, file types, trash |
+
+| Shidik-Store | Shidik-Control |
+|---|---|
+| ![Shidik-Store app store](assets/screenshots/shidik-store.png) | ![Shidik-Control settings](assets/screenshots/shidik-control.png) |
+| curated catalog, one-click install | system, theme, network, displays, user |
+
+### Installing to disk
+
+![Graphical installer](assets/screenshots/shidik-install.png)
+
+A five-step wizard: disk → user and password → confirmation → install with
+progress. A console variant is also available — `sudo shidik-install`
+([text-mode login screenshot](assets/screenshots/shidikdm-login.png) — the
+fallback ShidikDM greeter if graphics fail).
 
 ---
 
@@ -262,6 +283,9 @@ app menu, or `sudo shidik-install` in a terminal):
 
 ## 7. Roadmap
 
+- [x] passwordless autologin in live mode
+- [x] graphical installer (GtkAssistant wizard)
+- [x] Shidik-Store app store (an apt storefront)
 - [x] disk installer (shidik-install)
 - [x] graphical ShidikDM greeter (shidikgreet: glassmorphism, dedicated
       compositor via seatd-launch, root-side auth over a socket)
