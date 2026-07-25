@@ -85,6 +85,9 @@ static GtkWidget *make_power_menu(void) {
     gtk_button_set_image(GTK_BUTTON(button),
         gtk_image_new_from_icon_name("system-shutdown-symbolic",
             GTK_ICON_SIZE_BUTTON));
+    /* без always_show_image GtkMenuButton рисует свою стрелку вместо
+     * заданной иконки */
+    gtk_button_set_always_show_image(GTK_BUTTON(button), TRUE);
     gtk_widget_set_tooltip_text(button, "Завершение работы");
 
     GtkWidget *popover = gtk_popover_new(button);
@@ -146,6 +149,7 @@ int main(int argc, char *argv[]) {
     gtk_button_set_image(GTK_BUTTON(menu_btn),
         gtk_image_new_from_icon_name("open-menu-symbolic",
             GTK_ICON_SIZE_BUTTON));
+    gtk_button_set_always_show_image(GTK_BUTTON(menu_btn), TRUE);
     gtk_widget_set_tooltip_text(menu_btn, "Приложения (Win+D)");
     g_signal_connect(menu_btn, "clicked", G_CALLBACK(on_menu_clicked), NULL);
     gtk_box_pack_start(GTK_BOX(bar), menu_btn, FALSE, FALSE, 0);

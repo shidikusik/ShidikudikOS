@@ -192,7 +192,14 @@ shidikde-session (shell)
 - вывод на мониторы: `wlr_output_layout` + сценовый граф `wlr_scene`
   (рендеринг и damage-tracking бесплатно);
 - окна `xdg-shell`: map/unmap, фокус по клику, поднятие наверх,
-  интерактивные перемещение и ресайз, попапы;
+  интерактивные перемещение и ресайз, попапы, полноэкранный режим;
+  новое окно открывается по центру экрана (со сдвигом-каскадом);
+- **layer-shell** (`wlr_layer_shell_v1`): панель — настоящая полоса у
+  края экрана с резервированием места, а не обычное окно. Сцена разбита
+  на слои background / bottom / окна / top / overlay, поэтому окна
+  приложений никогда не перекрывают панель. XML протокола не
+  поставляется пакетами и лежит в `protocols/` (MIT, проект wlroots);
+  заголовок генерируется `wayland-scanner`'ом при сборке;
 - ввод: клавиатура через `xkbcommon` (раскладка из `XKB_DEFAULT_LAYOUT`),
   курсор через `wlr_cursor` + `xcursor`;
 - хоткеи (модификатор — Win/Super): `Win+Enter` — терминал (foot),
@@ -200,8 +207,8 @@ shidikde-session (shell)
   окно, `Win+Esc` — выход из сессии;
 - `-s <cmd>` — автостарт-скрипт получает готовый `WAYLAND_DISPLAY`.
 
-Отмеченные в коде точки роста: `wlr_layer_shell_v1` (панель поверх окон),
-`wlr_foreign_toplevel_manager_v1` (таскбар), XWayland, воркспейсы.
+Отмеченные в коде точки роста: `wlr_foreign_toplevel_manager_v1`
+(список окон в панели), XWayland, воркспейсы.
 
 ### 4.2 shidikpanel — панель (`src/shidikpanel/panel.c`)
 
@@ -332,6 +339,7 @@ qemu-system-x86_64 -enable-kvm -m 4G -cdrom iso/live-image-amd64.hybrid.iso
 
 ## 7. Дорожная карта
 
+- [x] layer-shell в shidikwm — панель как полоса у края экрана
 - [x] автовход в live-режиме без пароля
 - [x] графический установщик (мастер на GtkAssistant)
 - [x] магазин приложений Shidik-Store (витрина над apt)
@@ -343,7 +351,7 @@ qemu-system-x86_64 -enable-kvm -m 4G -cdrom iso/live-image-amd64.hybrid.iso
 - [x] тёмная тема по умолчанию, обои, брендинг в /usr/share/shidikudik
 - [x] Shidik-Files: файловый менеджер (GTK3 + GIO: навигация, места,
       корзина, переименование, открытие файлов по умолчанию)
-- [ ] layer-shell + foreign-toplevel в shidikwm → настоящий таскбар
+- [ ] foreign-toplevel → список открытых окон в панели (таскбар)
 - [ ] воркспейсы и тайлинг-режим
 - [ ] упаковка компонентов в .deb (debhelper) вместо сборки хуком
 - [ ] собственный репозиторий apt (reprepro/aptly)

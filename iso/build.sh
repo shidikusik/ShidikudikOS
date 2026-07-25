@@ -22,6 +22,9 @@ cp -r "$REPO_ROOT/session" config/includes.chroot/opt/shidikudik/session
 cp -r "$REPO_ROOT/systemd" config/includes.chroot/opt/shidikudik/systemd
 cp -r "$REPO_ROOT/assets"  config/includes.chroot/opt/shidikudik/assets
 cp -r "$REPO_ROOT/installer" config/includes.chroot/opt/shidikudik/installer
+# protocols/ нужен Makefile'у композитора: XML layer-shell не поставляется
+# пакетами, заголовок генерируется из него wayland-scanner'ом
+cp -r "$REPO_ROOT/protocols" config/includes.chroot/opt/shidikudik/protocols
 
 # session-скрипты кладём и напрямую — Makefile shidiksession ссылается
 # на ../../session относительно src/, структура сохранена копированием.

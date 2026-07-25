@@ -31,6 +31,7 @@
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
+#include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_pointer.h>
@@ -60,6 +61,18 @@ struct swm_server {
     struct wl_listener new_xdg_toplevel;
     struct wl_listener new_xdg_popup;
     struct wl_list toplevels;
+
+    /* layer-shell: панель и прочие «прибитые» к краю поверхности */
+    struct wlr_layer_shell_v1 *layer_shell;
+    struct wl_listener new_layer_surface;
+
+    /* Слои сцены, снизу вверх. Порядок создания задаёт z-order, поэтому
+     * окна приложений всегда между bottom и top, а панель — выше них. */
+    struct wlr_scene_tree *layer_background;
+    struct wlr_scene_tree *layer_bottom;
+    struct wlr_scene_tree *layer_normal;   /* обычные окна */
+    struct wlr_scene_tree *layer_top;
+    struct wlr_scene_tree *layer_overlay;
 
     struct wlr_cursor *cursor;
     struct wlr_xcursor_manager *cursor_mgr;
@@ -108,6 +121,14 @@ struct swm_toplevel {
     struct wl_listener request_resize;
     struct wl_listener request_maximize;
     struct wl_listener request_fullscreen;
+};
+
+struct swm_layer_surface {
+    struct swm_server *server;
+    struct wlr_layer_surface_v1 *layer_surface;
+    struct wlr_scene_layer_surface_v1 *scene;
+    struct wl_listener commit;
+    struct wl_listener destroy;
 };
 
 struct swm_keyboard {
@@ -543,6 +564,34 @@ static void xdg_toplevel_map(struct wl_listener *listener, void *data) {
     (void)data;
     struct swm_toplevel *tl = wl_container_of(listener, tl, map);
     wl_list_insert(&tl->server->toplevels, &tl->link);
+
+    /* Новое окно — по центру экрана. Без этого все окна открываются в
+     * левом верхнем углу друг на друге. Каждое следующее чуть смещаем,
+     * чтобы одинаковые окна не сливались в одно. */
+    struct wlr_box screen;
+    wlr_output_layout_get_box(tl->server->output_layout, NULL, &screen);
+    if (screen.width > 0 && screen.height > 0) {
+        struct wlr_box geo;
+        wlr_xdg_surface_get_geometry(tl->xdg_toplevel->base, &geo);
+        if (geo.width > 0 && geo.height > 0) {
+            static int cascade;
+            int offset = (cascade % 5) * 28;
+            cascade++;
+
+            int x = screen.x + (screen.width - geo.width) / 2 + offset;
+            int y = screen.y + (screen.height - geo.height) / 2 + offset;
+            /* не даём окну уехать за пределы вывода */
+            int max_x = screen.x + screen.width - geo.width;
+            int max_y = screen.y + screen.height - geo.height;
+            if (x > max_x) x = max_x;
+            if (y > max_y) y = max_y;
+            if (x < screen.x) x = screen.x;
+            if (y < screen.y) y = screen.y;
+            wlr_scene_node_set_position(&tl->scene_tree->node,
+                x - geo.x, y - geo.y);
+        }
+    }
+
     focus_toplevel(tl);
 }
 
@@ -656,7 +705,7 @@ static void server_new_xdg_toplevel(struct wl_listener *listener,
     struct swm_toplevel *tl = calloc(1, sizeof(*tl));
     tl->server = server;
     tl->xdg_toplevel = xdg_toplevel;
-    tl->scene_tree = wlr_scene_xdg_surface_create(&server->scene->tree,
+    tl->scene_tree = wlr_scene_xdg_surface_create(server->layer_normal,
         xdg_toplevel->base);
     tl->scene_tree->node.data = tl;          /* для desktop_toplevel_at */
     xdg_toplevel->base->data = tl->scene_tree; /* для попапов */
@@ -679,6 +728,76 @@ static void server_new_xdg_toplevel(struct wl_listener *listener,
     tl->request_fullscreen.notify = xdg_toplevel_request_fullscreen;
     wl_signal_add(&xdg_toplevel->events.request_fullscreen,
         &tl->request_fullscreen);
+}
+
+/* ---------- layer-shell (панель) ---------- */
+
+/* Пересчитывает положение и размер layer-поверхности по её якорям.
+ * Всю арифметику делает helper wlr_scene_layer_surface_v1_configure. */
+static void layer_surface_commit(struct wl_listener *listener, void *data) {
+    (void)data;
+    struct swm_layer_surface *ls = wl_container_of(listener, ls, commit);
+    struct wlr_layer_surface_v1 *surface = ls->layer_surface;
+    if (!surface->initialized)
+        return;
+
+    struct wlr_box full = {0};
+    wlr_output_layout_get_box(ls->server->output_layout,
+        surface->output, &full);
+    struct wlr_box usable = full; /* exclusive zone вычитается helper'ом */
+    wlr_scene_layer_surface_v1_configure(ls->scene, &full, &usable);
+}
+
+static void layer_surface_destroy(struct wl_listener *listener, void *data) {
+    (void)data;
+    struct swm_layer_surface *ls = wl_container_of(listener, ls, destroy);
+    wl_list_remove(&ls->commit.link);
+    wl_list_remove(&ls->destroy.link);
+    free(ls);
+}
+
+static void server_new_layer_surface(struct wl_listener *listener,
+        void *data) {
+    struct swm_server *server =
+        wl_container_of(listener, server, new_layer_surface);
+    struct wlr_layer_surface_v1 *surface = data;
+
+    /* Клиент может не указать вывод — тогда берём первый доступный. */
+    if (surface->output == NULL) {
+        if (wl_list_empty(&server->outputs)) {
+            wlr_layer_surface_v1_destroy(surface);
+            return;
+        }
+        struct swm_output *output =
+            wl_container_of(server->outputs.next, output, link);
+        surface->output = output->wlr_output;
+    }
+
+    struct wlr_scene_tree *parent;
+    switch (surface->pending.layer) {
+    case ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND:
+        parent = server->layer_background;
+        break;
+    case ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM:
+        parent = server->layer_bottom;
+        break;
+    case ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY:
+        parent = server->layer_overlay;
+        break;
+    default:
+        parent = server->layer_top;
+        break;
+    }
+
+    struct swm_layer_surface *ls = calloc(1, sizeof(*ls));
+    ls->server = server;
+    ls->layer_surface = surface;
+    ls->scene = wlr_scene_layer_surface_v1_create(parent, surface);
+
+    ls->commit.notify = layer_surface_commit;
+    wl_signal_add(&surface->surface->events.commit, &ls->commit);
+    ls->destroy.notify = layer_surface_destroy;
+    wl_signal_add(&surface->events.destroy, &ls->destroy);
 }
 
 static void server_new_xdg_popup(struct wl_listener *listener, void *data) {
@@ -740,9 +859,17 @@ int main(int argc, char *argv[]) {
         server.output_layout);
 
     /* Фон: тёмная заливка в тон логотипа (создаётся первым — лежит под
-     * всеми окнами). До полноценных обоев через layer-shell. */
+     * всем остальным). До полноценных обоев через layer-shell. */
     wlr_scene_rect_create(&server.scene->tree, 8192, 8192,
         (float[4]){0.102f, 0.106f, 0.149f, 1.0f});
+
+    /* Слои сцены. Порядок создания = порядок наложения: обычные окна
+     * всегда ниже панели (layer_top), но выше обоев. */
+    server.layer_background = wlr_scene_tree_create(&server.scene->tree);
+    server.layer_bottom = wlr_scene_tree_create(&server.scene->tree);
+    server.layer_normal = wlr_scene_tree_create(&server.scene->tree);
+    server.layer_top = wlr_scene_tree_create(&server.scene->tree);
+    server.layer_overlay = wlr_scene_tree_create(&server.scene->tree);
 
     wl_list_init(&server.toplevels);
     server.xdg_shell = wlr_xdg_shell_create(server.wl_display, 3);
@@ -752,6 +879,13 @@ int main(int argc, char *argv[]) {
     server.new_xdg_popup.notify = server_new_xdg_popup;
     wl_signal_add(&server.xdg_shell->events.new_popup,
         &server.new_xdg_popup);
+
+    /* layer-shell: без него панель становится обычным окном посреди
+     * экрана вместо полосы у края. */
+    server.layer_shell = wlr_layer_shell_v1_create(server.wl_display, 4);
+    server.new_layer_surface.notify = server_new_layer_surface;
+    wl_signal_add(&server.layer_shell->events.new_surface,
+        &server.new_layer_surface);
 
     server.cursor = wlr_cursor_create();
     wlr_cursor_attach_output_layout(server.cursor, server.output_layout);
