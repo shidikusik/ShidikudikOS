@@ -73,7 +73,7 @@ Environment (**ShidikDE**).
 | Desktop Environment | **ShidikDE** — композитор + панель + лаунчер + сессия|
 | Сборка ISO          | `live-build` (внутри использует `debootstrap`)       |
 
-### Почему Wayland/wlroots, а не X11
+### Почему Wayland/wlroots, а не X11 xorg
 
 X11 для нового DE в 2026 году — тупиковая ветка: сервер X.Org фактически
 заморожен, а «оконный менеджер поверх Xlib/xcb» наследует всю архаичную
